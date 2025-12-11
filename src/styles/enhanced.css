@@ -1,0 +1,367 @@
+/* Enhanced UI/UX Styles for Clinic+ */
+
+/* Smooth Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Enhanced Card Styles */
+.enhanced-card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.4s ease-out;
+}
+
+.enhanced-card:hover {
+  @apply shadow-lg border-gray-200;
+  transform: translateY(-2px);
+}
+
+.enhanced-card-interactive {
+  @apply cursor-pointer;
+}
+
+.enhanced-card-interactive:active {
+  transform: translateY(0);
+}
+
+/* Glass Morphism Effect */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+/* Gradient Backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.gradient-warning {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-info {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Enhanced Buttons */
+.btn-enhanced {
+  @apply relative overflow-hidden;
+  transition: all 0.3s ease;
+}
+
+.btn-enhanced::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn-enhanced:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-enhanced:active {
+  transform: scale(0.98);
+}
+
+/* Skeleton Loaders */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-circle {
+  @apply rounded-full;
+}
+
+.skeleton-text {
+  @apply h-4;
+}
+
+.skeleton-title {
+  @apply h-6;
+}
+
+/* Enhanced Input Fields */
+.input-enhanced {
+  @apply transition-all duration-200;
+  @apply focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+}
+
+.input-enhanced:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Badge Animations */
+.badge-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Loading Spinner */
+.spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Page Transitions */
+.page-enter {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Sidebar Enhancements */
+.sidebar-item {
+  @apply relative transition-all duration-200;
+}
+
+.sidebar-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: currentColor;
+  transform: scaleY(0);
+  transition: transform 0.2s ease;
+}
+
+.sidebar-item:hover::before,
+.sidebar-item.active::before {
+  transform: scaleY(1);
+}
+
+.sidebar-item:hover {
+  @apply bg-gray-50;
+  transform: translateX(4px);
+}
+
+/* Stat Card Enhancements */
+.stat-card {
+  @apply relative overflow-hidden;
+  transition: all 0.3s ease;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-card:hover::after {
+  opacity: 1;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Table Enhancements */
+.table-enhanced {
+  @apply w-full;
+}
+
+.table-enhanced tbody tr {
+  @apply transition-colors duration-150;
+}
+
+.table-enhanced tbody tr:hover {
+  @apply bg-gray-50;
+}
+
+/* Toast Notifications */
+.toast {
+  @apply fixed z-50;
+  animation: slideIn 0.3s ease-out;
+}
+
+.toast-success {
+  @apply bg-green-500 text-white;
+}
+
+.toast-error {
+  @apply bg-red-500 text-white;
+}
+
+.toast-info {
+  @apply bg-blue-500 text-white;
+}
+
+.toast-warning {
+  @apply bg-yellow-500 text-white;
+}
+
+/* Scrollbar Styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded;
+  transition: background 0.2s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+/* Focus Visible Enhancement */
+.focus-visible-enhanced:focus-visible {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+}
+
+/* Responsive Typography */
+.text-responsive {
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+}
+
+.heading-responsive {
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+/* Grid Enhancements */
+.grid-auto-fit {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.grid-auto-fill {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+/* Utility Classes */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.backdrop-blur-enhanced {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Dark Mode Enhancements */
+.dark .enhanced-card {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.dark .enhanced-card:hover {
+  @apply border-gray-600;
+}
+
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    #374151 25%,
+    #4b5563 50%,
+    #374151 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .enhanced-card {
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+}
+

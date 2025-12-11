@@ -1,0 +1,210 @@
+{
+  "summary": {
+    "total": 33,
+    "passed": 16,
+    "failed": 17,
+    "skipped": 0,
+    "success_rate": "48.5%"
+  },
+  "results": [
+    {
+      "test": "Health Check",
+      "status": "PASS",
+      "details": "Status: ok",
+      "timestamp": "2025-11-30T06:20:31.807762"
+    },
+    {
+      "test": "Login",
+      "status": "PASS",
+      "details": "Authentication successful",
+      "timestamp": "2025-11-30T06:20:34.010077"
+    },
+    {
+      "test": "Token Verification",
+      "status": "FAIL",
+      "details": "Expected 200, got 404: index.html not found",
+      "timestamp": "2025-11-30T06:20:36.036899"
+    },
+    {
+      "test": "Get Patients",
+      "status": "PASS",
+      "details": "Found 1 patients",
+      "timestamp": "2025-11-30T06:20:40.169544"
+    },
+    {
+      "test": "Create Patient",
+      "status": "FAIL",
+      "details": "Expected 201, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:20:44.246050"
+    },
+    {
+      "test": "Get Patient Details",
+      "status": "FAIL",
+      "details": "Expected 200, got 400: <!doctype html>\n<html lang=en>\n<title>400 Bad Request</title>\n<h1>Bad Request</h1>\n<p>Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)</p>\n",
+      "timestamp": "2025-11-30T06:20:46.278743"
+    },
+    {
+      "test": "Get Appointments",
+      "status": "PASS",
+      "details": "Found 0 appointments",
+      "timestamp": "2025-11-30T06:20:48.321048"
+    },
+    {
+      "test": "Create Appointment",
+      "status": "FAIL",
+      "details": "Expected 201, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:20:50.368102"
+    },
+    {
+      "test": "Get Queue",
+      "status": "PASS",
+      "details": "Found 0 queue entries",
+      "timestamp": "2025-11-30T06:20:52.426620"
+    },
+    {
+      "test": "Search Drugs",
+      "status": "PASS",
+      "details": "Found 0 drugs",
+      "timestamp": "2025-11-30T06:20:54.481093"
+    },
+    {
+      "test": "Get Prescriptions",
+      "status": "PASS",
+      "details": "Found 0 prescriptions",
+      "timestamp": "2025-11-30T06:20:56.527597"
+    },
+    {
+      "test": "Get Billing Codes",
+      "status": "PASS",
+      "details": "Found 0 billing codes",
+      "timestamp": "2025-11-30T06:20:58.564423"
+    },
+    {
+      "test": "Get Statements",
+      "status": "PASS",
+      "details": "Found 0 statements",
+      "timestamp": "2025-11-30T06:21:00.624742"
+    },
+    {
+      "test": "Search Pharmacies",
+      "status": "PASS",
+      "details": "Found 0 pharmacies",
+      "timestamp": "2025-11-30T06:21:02.673480"
+    },
+    {
+      "test": "Get Insurance Plans",
+      "status": "PASS",
+      "details": "Found 0 plans",
+      "timestamp": "2025-11-30T06:21:04.721032"
+    },
+    {
+      "test": "Register RPM Device",
+      "status": "FAIL",
+      "details": "Expected 201, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:21:06.745705"
+    },
+    {
+      "test": "Get RPM Alerts",
+      "status": "PASS",
+      "details": "Found 0 alerts",
+      "timestamp": "2025-11-30T06:21:08.789627"
+    },
+    {
+      "test": "Emergency Access (ID)",
+      "status": "FAIL",
+      "details": "Expected 200, got 404: {\n  \"error\": \"Patient not found\"\n}\n",
+      "timestamp": "2025-11-30T06:21:10.815942"
+    },
+    {
+      "test": "Emergency Access (Fingerprint)",
+      "status": "PASS",
+      "details": "Fingerprint matching attempted",
+      "timestamp": "2025-11-30T06:21:12.921214"
+    },
+    {
+      "test": "Emergency Access (RFID)",
+      "status": "PASS",
+      "details": "RFID matching attempted",
+      "timestamp": "2025-11-30T06:21:15.024637"
+    },
+    {
+      "test": "Get CDS Rules",
+      "status": "PASS",
+      "details": "Found 0 rules",
+      "timestamp": "2025-11-30T06:21:17.067862"
+    },
+    {
+      "test": "Check Patient CDS",
+      "status": "FAIL",
+      "details": "Expected 200, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:21:19.097681"
+    },
+    {
+      "test": "Get Care Gaps",
+      "status": "PASS",
+      "details": "Found 0 care gaps",
+      "timestamp": "2025-11-30T06:21:21.142260"
+    },
+    {
+      "test": "Get FHIR Patient",
+      "status": "FAIL",
+      "details": "Expected 200, got 404: index.html not found",
+      "timestamp": "2025-11-30T06:21:23.194972"
+    },
+    {
+      "test": "Search FHIR Patients",
+      "status": "FAIL",
+      "details": "Expected 200, got 404: index.html not found",
+      "timestamp": "2025-11-30T06:21:25.255980"
+    },
+    {
+      "test": "Get FHIR MedicationRequest",
+      "status": "FAIL",
+      "details": "Expected 200, got 404: index.html not found",
+      "timestamp": "2025-11-30T06:21:27.311534"
+    },
+    {
+      "test": "Get FHIR Condition",
+      "status": "FAIL",
+      "details": "Expected 200, got 404: index.html not found",
+      "timestamp": "2025-11-30T06:21:29.362273"
+    },
+    {
+      "test": "Transcribe Audio",
+      "status": "FAIL",
+      "details": "Expected 200, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:21:31.399954"
+    },
+    {
+      "test": "Generate Documentation",
+      "status": "FAIL",
+      "details": "Expected 200, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:21:33.438956"
+    },
+    {
+      "test": "Generate Patient Summary",
+      "status": "FAIL",
+      "details": "Expected 200, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:21:35.480924"
+    },
+    {
+      "test": "Initialize Payment",
+      "status": "FAIL",
+      "details": "Expected 200, got 400: {\n  \"error\": \"Format is Authorization Bearer [secret key]\"\n}\n",
+      "timestamp": "2025-11-30T06:21:53.238469"
+    },
+    {
+      "test": "Export Patients (JSON)",
+      "status": "FAIL",
+      "details": "Expected 200, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:21:55.260211"
+    },
+    {
+      "test": "Export FHIR Bundle",
+      "status": "FAIL",
+      "details": "Expected 200, got 403: {\n  \"error\": \"Insufficient permissions\"\n}\n",
+      "timestamp": "2025-11-30T06:21:57.308627"
+    }
+  ],
+  "timestamp": "2025-11-30T06:21:57.310132"
+}
