@@ -46,7 +46,9 @@ import {
   Microscope,
   AlertCircle,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  History,
+  Share2
 } from 'lucide-react'
 import { apiService } from './services/apiService.js'
 import PatientDataManager from './components/PatientDataManager.jsx'
@@ -580,6 +582,24 @@ function App() {
         return <TreatmentPlans patientId={user.patient_id} />
       case 'patient-portal':
         return <PatientPortal />
+      case 'patient-dashboard':
+        return <PatientPortal initialTab="dashboard" />
+      case 'patient-messages':
+        return <PatientPortal initialTab="messages" />
+      case 'patient-appointments':
+        return <PatientPortal initialTab="appointments" />
+      case 'patient-prescriptions':
+        return <PatientPortal initialTab="prescriptions" />
+      case 'patient-records':
+        return <PatientPortal initialTab="records" />
+      case 'patient-history':
+        return <PatientPortal initialTab="history" />
+      case 'patient-grant-access':
+        return <PatientPortal initialTab="grant-access" />
+      case 'patient-billing':
+        return <PatientPortal initialTab="billing" />
+      case 'patient-profile':
+        return <PatientPortal initialTab="profile" />
       case 'era':
         return <ERA />
       case 'ub04-forms':
@@ -789,6 +809,129 @@ function App() {
                           <Bell className="w-4 h-4 mr-3" />
                           <span className="font-medium">Clinical Reminders</span>
                         </Button>
+
+                        {/* Patient Menu */}
+                        {(user.user_type === 'patient' || user.user_type === 'Patient') && (
+                          <>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-dashboard' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-dashboard' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-dashboard')}
+                            >
+                              <Activity className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Dashboard</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-messages' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-messages' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-messages')}
+                            >
+                              <MessageSquare className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Messages</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-appointments' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-appointments' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-appointments')}
+                            >
+                              <Calendar className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Appointments</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-prescriptions' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-prescriptions' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-prescriptions')}
+                            >
+                              <Pill className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Prescriptions</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-records' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-records' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-records')}
+                            >
+                              <FileText className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Records</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-history' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-history' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-history')}
+                            >
+                              <History className="w-4 h-4 mr-3" />
+                              <span className="font-medium">History</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-grant-access' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-grant-access' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-grant-access')}
+                            >
+                              <Share2 className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Grant Access</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-billing' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-billing' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-billing')}
+                            >
+                              <CreditCard className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Billing</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'patient-profile' ? 'default' : 'ghost'}
+                              className={`w-full justify-start h-10 transition-all ${
+                                currentView === 'patient-profile' 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
+                                  : 'hover:bg-gray-50 hover:text-gray-900'
+                              }`}
+                              onClick={handleNavClick('patient-profile')}
+                            >
+                              <User className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Profile</span>
+                            </Button>
+                          </>
+                        )}
 
                         {/* Receptionist Menu */}
                         {(user.user_type === 'receptionist' || user.user_type === 'Receptionist') && (
@@ -1151,7 +1294,7 @@ function App() {
                               onClick={handleNavClick('system-settings')}
                             >
                               <Settings className="w-4 h-4 mr-2" />
-                              Settings
+                              Settings / MFA & Policies
                             </Button>
                             <Button
                               type="button"
@@ -1191,12 +1334,30 @@ function App() {
                             </Button>
                             <Button
                               type="button"
+                              variant={currentView === 'organizations' ? 'default' : 'ghost'}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('organizations')}
+                            >
+                              <Building2 className="w-4 h-4 mr-2" />
+                              Organization Mgmt
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={currentView === 'billing-management' ? 'default' : 'ghost'}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('billing-management')}
+                            >
+                              <DollarSign className="w-4 h-4 mr-2" />
+                              Billing Management
+                            </Button>
+                            <Button
+                              type="button"
                               variant={currentView === 'security-audit' ? 'default' : 'ghost'}
                               className="w-full justify-start"
                               onClick={handleNavClick('security-audit')}
                             >
                               <Shield className="w-4 h-4 mr-2" />
-                              Security Audit
+                              Security & Audit
                             </Button>
                             <Button
                               type="button"

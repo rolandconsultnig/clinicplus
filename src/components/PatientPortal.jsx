@@ -12,6 +12,7 @@ import { Badge } from './ui/badge.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs.jsx'
 import { Textarea } from './ui/textarea.jsx'
 import { Alert, AlertDescription } from './ui/alert.jsx'
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar.jsx'
 import PatientPrescriptionView from './PatientPrescriptionView'
 import PatientAppointmentBooking from './PatientAppointmentBooking'
 import { 
@@ -39,16 +40,22 @@ import {
   Phone,
   MapPin,
   Shield,
-  Lock
+  Lock,
+  History,
+  Share2,
+  Copy,
+  CheckCircle2,
+  RefreshCw,
+  Building2
 } from 'lucide-react'
 
-const PatientPortal = () => {
+const PatientPortal = ({ initialTab = 'dashboard' }) => {
   const [messages, setMessages] = useState([])
   const [appointments, setAppointments] = useState([])
   const [medicalRecords, setMedicalRecords] = useState([])
   const [labResults, setLabResults] = useState([])
   const [billingStatements, setBillingStatements] = useState([])
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [showCompose, setShowCompose] = useState(false)
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [user, setUser] = useState(null)
@@ -85,15 +92,40 @@ const PatientPortal = () => {
   })
   const [profileError, setProfileError] = useState('')
   const [profileSuccess, setProfileSuccess] = useState('')
+  const [medicalHistory, setMedicalHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [otpData, setOtpData] = useState(null)
+  const [generatingOTP, setGeneratingOTP] = useState(false)
+  const [otpError, setOtpError] = useState('')
+  const [otpSuccess, setOtpSuccess] = useState('')
+  const [accessScope, setAccessScope] = useState({
+    demographics: true,
+    medical_history: true,
+    allergies: true,
+    medications: true,
+    lab_results: true,
+    encounters: true
+  })
 
   useEffect(() => {
     const userData = localStorage.getItem('auth_user')
     if (userData) {
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
-      loadDashboardData(parsedUser.patient_id || parsedUser.id)
+      // Always load the logged-in user's own data - no patient selection needed
+      const patientId = parsedUser.patient_id || parsedUser.id
+      if (patientId) {
+        loadDashboardData(patientId)
+      }
     }
   }, [])
+
+  // Update active tab when initialTab prop changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
 
   useEffect(() => {
     if (activeTab === 'messages') {
@@ -106,6 +138,8 @@ const PatientPortal = () => {
       loadBillingStatements()
     } else if (activeTab === 'profile') {
       loadProfile()
+    } else if (activeTab === 'history') {
+      loadMedicalHistory()
     }
   }, [activeTab])
 
@@ -321,6 +355,83 @@ const PatientPortal = () => {
     }
   }
 
+  const loadMedicalHistory = async () => {
+    try {
+      setLoadingHistory(true)
+      // Always use the logged-in user's patient ID - no selection needed
+      const patientId = user?.patient_id || user?.id
+      if (!patientId) {
+        console.warn('Patient ID not found for logged-in user')
+        setMedicalHistory([])
+        return
+      }
+
+      const result = await apiService.request(`/secure/medical/patients/${patientId}/medical-history`, 'GET')
+      if (result.success) {
+        setMedicalHistory(result.medical_history || [])
+      } else {
+        setMedicalHistory([])
+      }
+    } catch (error) {
+      console.error('Error loading medical history:', error)
+      setMedicalHistory([])
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const generateOTP = async () => {
+    try {
+      setGeneratingOTP(true)
+      setOtpError('')
+      setOtpSuccess('')
+      
+      const patientId = user?.patient_id || user?.id
+      if (!patientId) {
+        setOtpError('Patient ID not found')
+        return
+      }
+
+      const scopeArray = Object.entries(accessScope)
+        .filter(([_, enabled]) => enabled)
+        .map(([key, _]) => key)
+
+      const result = await apiService.request('/otp/patient/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          patient_id: patientId,
+          access_scope: scopeArray,
+          phone_number: user?.phone || user?.phone_primary
+        })
+      })
+
+      if (result.success) {
+        setOtpData({
+          otp_id: result.otp_id,
+          expires_at: result.expires_at,
+          phone_number: result.phone_number
+        })
+        setOtpSuccess('OTP generated successfully! Check your phone for the code.')
+      } else {
+        setOtpError(result.error || 'Failed to generate OTP')
+      }
+    } catch (error) {
+      console.error('Error generating OTP:', error)
+      setOtpError(error.message || 'Failed to generate OTP')
+    } finally {
+      setGeneratingOTP(false)
+    }
+  }
+
+  const copyOTPToClipboard = async (otpCode) => {
+    try {
+      await navigator.clipboard.writeText(otpCode)
+      alert('OTP copied to clipboard!')
+    } catch (error) {
+      console.error('Failed to copy OTP:', error)
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       subject: '',
@@ -470,20 +581,57 @@ const PatientPortal = () => {
     }
   }
 
+  const fullName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.username || 'Patient'
+  const avatarFallback = fullName ? fullName.charAt(0).toUpperCase() : 'P'
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <User className="w-8 h-8 text-blue-600" />
-            Patient Portal
-          </h1>
-          <p className="text-gray-600 mt-1">Access your health records and communicate with providers</p>
+    <div className="p-6 space-y-6 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 rounded-2xl">
+      {/* Hero Profile Header */}
+      <Card className="border-0 shadow-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <Avatar className="w-16 h-16 ring-4 ring-white/30">
+              <AvatarImage src={user?.photo_url || user?.avatar_url} alt={fullName} />
+              <AvatarFallback className="bg-white/20 text-white text-lg font-semibold">{avatarFallback}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-white/80 text-sm">Welcome back,</p>
+              <h1 className="text-3xl font-bold text-white leading-tight">{fullName}</h1>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <Badge variant="outline" className="bg-white/10 text-white border-white/30">
+                  <Shield className="w-4 h-4 mr-1" />
+                  Patient Portal
+                </Badge>
+                <Badge variant="outline" className="bg-white/10 text-white border-white/30">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
+            <div className="bg-white/15 text-white rounded-xl p-3 backdrop-blur-sm">
+              <p className="text-xs uppercase tracking-wide text-white/70">Appointments</p>
+              <p className="text-2xl font-bold">{stats.upcomingAppointments}</p>
+            </div>
+            <div className="bg-white/15 text-white rounded-xl p-3 backdrop-blur-sm">
+              <p className="text-xs uppercase tracking-wide text-white/70">Messages</p>
+              <p className="text-2xl font-bold">{stats.unreadMessages}</p>
+            </div>
+            <div className="bg-white/15 text-white rounded-xl p-3 backdrop-blur-sm">
+              <p className="text-xs uppercase tracking-wide text-white/70">Lab Results</p>
+              <p className="text-2xl font-bold">{stats.pendingLabResults}</p>
+            </div>
+            <div className="bg-white/15 text-white rounded-xl p-3 backdrop-blur-sm">
+              <p className="text-xs uppercase tracking-wide text-white/70">Balance</p>
+              <p className="text-2xl font-bold">${stats.outstandingBalance.toFixed(2)}</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="messages">
             Messages {stats.unreadMessages > 0 && `(${stats.unreadMessages})`}
@@ -491,6 +639,8 @@ const PatientPortal = () => {
           <TabsTrigger value="appointments">Appointments</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
           <TabsTrigger value="records">Records</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="grant-access">Grant Access</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
         </TabsList>
@@ -732,7 +882,7 @@ const PatientPortal = () => {
             <Card>
               <CardContent className="p-8 text-center">
                 <Pill className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Loading patient information...</p>
+                <p className="text-gray-600">Loading your prescriptions...</p>
               </CardContent>
             </Card>
           )}
@@ -829,6 +979,247 @@ const PatientPortal = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-blue-600" />
+                <CardTitle>Medical History</CardTitle>
+              </div>
+              <CardDescription>View your complete medical history, diagnoses, and treatments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingHistory ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading medical history...</p>
+                </div>
+              ) : medicalHistory.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <History className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p>No medical history records available.</p>
+                  <p className="text-sm mt-2">Your medical history will appear here once records are added by your healthcare provider.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {medicalHistory.map((history) => (
+                    <Card key={history.id} className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold text-lg text-gray-900">{history.condition || history.diagnosis || 'Medical Condition'}</h3>
+                              {history.status && (
+                                <Badge variant={history.status === 'active' ? 'default' : 'outline'}>
+                                  {history.status}
+                                </Badge>
+                              )}
+                            </div>
+                            {history.diagnosis_date && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                <Calendar className="w-3 h-3 inline mr-1" />
+                                Diagnosed: {new Date(history.diagnosis_date).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric' 
+                                })}
+                              </p>
+                            )}
+                            {history.description && (
+                              <p className="text-sm text-gray-700 mb-2">{history.description}</p>
+                            )}
+                            {history.treatment && (
+                              <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                                <p className="text-sm font-medium text-blue-900 mb-1">Treatment:</p>
+                                <p className="text-sm text-blue-800">{history.treatment}</p>
+                              </div>
+                            )}
+                            {history.notes && (
+                              <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                                <p className="text-sm font-medium text-gray-700 mb-1">Notes:</p>
+                                <p className="text-sm text-gray-600">{history.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-gray-500 pt-3 border-t">
+                          {history.diagnosed_by && (
+                            <span>
+                              <User className="w-3 h-3 inline mr-1" />
+                              Diagnosed by: {history.diagnosed_by}
+                            </span>
+                          )}
+                          {history.facility_name && (
+                            <span>
+                              <Building2 className="w-3 h-3 inline mr-1" />
+                              {history.facility_name}
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="grant-access" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-green-600" />
+                <CardTitle>Grant Access to Medical History</CardTitle>
+              </div>
+              <CardDescription>Generate a secure OTP code to share with healthcare providers for authorized access to your medical history</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Access Scope Selection */}
+              <div>
+                <Label className="text-base font-semibold mb-3 block">Select Data to Share</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {Object.entries(accessScope).map(([key, enabled]) => (
+                    <div key={key} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setAccessScope({ ...accessScope, [key]: !enabled })}>
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={() => setAccessScope({ ...accessScope, [key]: !enabled })}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <Label className="cursor-pointer text-sm font-medium capitalize">
+                        {key.replace('_', ' ')}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* OTP Generation */}
+              <div className="border-t pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <Label className="text-base font-semibold">Generate Authorization Code</Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      This code will be sent to your registered phone number and can be shared with healthcare providers
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={generateOTP} 
+                    disabled={generatingOTP}
+                    className="flex items-center gap-2"
+                  >
+                    {generatingOTP ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Key className="w-4 h-4" />
+                        Generate OTP
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Error Message */}
+                {otpError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="w-4 h-4" />
+                    <AlertDescription>{otpError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Success Message */}
+                {otpSuccess && (
+                  <Alert className="mb-4 bg-green-50 border-green-200">
+                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    <AlertDescription className="text-green-800">{otpSuccess}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* OTP Display */}
+                {otpData && (
+                  <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+                    <CardContent className="p-6">
+                      <div className="text-center space-y-4">
+                        <div className="flex items-center justify-center gap-2 mb-4">
+                          <Shield className="w-6 h-6 text-blue-600" />
+                          <h3 className="text-lg font-bold text-gray-900">Authorization Code Generated</h3>
+                        </div>
+                        
+                        <div className="bg-white rounded-lg p-6 border-2 border-dashed border-blue-300">
+                          <div className="flex items-center justify-center gap-2 mb-3">
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                            <p className="text-sm font-semibold text-gray-900">Code sent to your phone!</p>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Check your SMS messages for the 6-digit authorization code. Share this code with your healthcare provider when they request access to your medical records.
+                          </p>
+                          <div className="bg-blue-50 rounded-lg p-4">
+                            <p className="text-xs text-gray-600 mb-2">Code Format:</p>
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="flex gap-1">
+                                {[1,2,3,4,5,6].map((i) => (
+                                  <div key={i} className="w-8 h-10 bg-white border-2 border-blue-300 rounded flex items-center justify-center">
+                                    <span className="text-blue-600 font-bold">•</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <p className="text-xs text-center text-gray-500 mt-2">6-digit code</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center justify-center gap-2 text-gray-600">
+                            <Clock className="w-4 h-4" />
+                            <span>Expires: {new Date(otpData.expires_at).toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center justify-center gap-2 text-gray-600">
+                            <Phone className="w-4 h-4" />
+                            <span>Sent to: {otpData.phone_number}</span>
+                          </div>
+                        </div>
+
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                            <div className="text-sm text-yellow-800">
+                              <p className="font-semibold mb-1">Security Notice:</p>
+                              <ul className="list-disc list-inside space-y-1 text-xs">
+                                <li>This code is valid for 15 minutes only</li>
+                                <li>Only share with trusted healthcare providers</li>
+                                <li>The code can only be used once</li>
+                                <li>You will be notified when the code is used</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Instructions */}
+                {!otpData && (
+                  <div className="bg-gray-50 rounded-lg p-4 mt-4">
+                    <h4 className="font-semibold text-sm mb-2">How it works:</h4>
+                    <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
+                      <li>Select the data types you want to share</li>
+                      <li>Click "Generate OTP" to create an authorization code</li>
+                      <li>The code will be sent to your phone via SMS</li>
+                      <li>Share the code with your healthcare provider</li>
+                      <li>The provider can use this code to access your selected medical information</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="billing">

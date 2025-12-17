@@ -97,3 +97,6 @@ flask_session/
 
 # Alembic
 alembic.ini.bak
+
+# Local Netlify folder
+.netlify

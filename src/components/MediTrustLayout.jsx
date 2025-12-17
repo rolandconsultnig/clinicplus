@@ -40,15 +40,6 @@ const MediTrustLayout = ({ children, themeName }) => {
       window.AOS.refresh();
     }
 
-    // Load main.js for mobile nav toggle
-    const mainJsPath = `${themePath}/assets/js/main.js`;
-    if (!document.querySelector(`script[src="${mainJsPath}"]`)) {
-      loadScript(mainJsPath).catch(() => {
-        // Fallback to MediTrust main.js
-        loadScript('/themes/MediTrust/assets/js/main.js');
-      });
-    }
-
     // Toggle scrolled class on scroll
     const handleScroll = () => {
       const body = document.querySelector('body');
