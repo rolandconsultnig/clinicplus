@@ -100,3 +100,10 @@ alembic.ini.bak
 
 # Local Netlify folder
 .netlify
+
+ # Large third-party / unrelated projects
+ openemr-7.0.0/
+ mobile/
+
+ _openemr-7.0.0.bak/
+ _mobile.bak/

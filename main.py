@@ -23,8 +23,21 @@ app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'sta
 app.config['SECRET_KEY'] = 'medical_app_secret_key_change_in_production'
 
 # Enable CORS for all routes with proper preflight handling
+# Allow both development and production origins
+allowed_origins = [
+    "http://localhost:5173", 
+    "http://localhost:5174", 
+    "http://localhost:3000",
+    "https://charming-otter-6124d0.netlify.app"
+]
+
+# Add Railway URL if available
+railway_url = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+if railway_url:
+    allowed_origins.append(f"https://{railway_url}")
+
 CORS(app, 
-     origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+     origins=allowed_origins,
      methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Access-Control-Allow-Origin"],
      supports_credentials=True,
@@ -441,4 +454,10 @@ def serve(path):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Check if running in production (Railway/Heroku/etc.)
+    if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('DYNO'):
+        # Production mode - use gunicorn
+        pass  # Gunicorn will handle this via Procfile
+    else:
+        # Development mode
+        app.run(host='0.0.0.0', port=5000, debug=True)
