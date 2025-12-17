@@ -320,6 +320,16 @@ def favicon():
     # Return empty 204 No Content if favicon doesn't exist
     return '', 204
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for Railway monitoring"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'Clinic+ API is running',
+        'version': '1.0.0',
+        'environment': 'production'
+    }), 200
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
