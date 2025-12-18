@@ -36,6 +36,11 @@ railway_url = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
 if railway_url:
     allowed_origins.append(f"https://{railway_url}")
 
+# Add Netlify site URL for production
+netlify_url = os.environ.get('NETLIFY_SITE_URL')
+if netlify_url:
+    allowed_origins.append(netlify_url)
+
 CORS(app, 
      origins=allowed_origins,
      methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
