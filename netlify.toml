@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  # VITE_API_URL will be set in Netlify dashboard environment variables
 
 [[redirects]]
   from = "/*"

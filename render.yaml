@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: clinicplus-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app --bind 0.0.0.0:$PORT --workers 4
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clinicplus-db
+          property: connectionString
+
+databases:
+  - name: clinicplus-db
+    databaseName: clinicplus
+    user: clinicplus

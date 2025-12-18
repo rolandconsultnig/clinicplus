@@ -36,10 +36,18 @@ railway_url = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
 if railway_url:
     allowed_origins.append(f"https://{railway_url}")
 
+# Add Render URL if available
+render_url = os.environ.get('RENDER_EXTERNAL_URL')
+if render_url:
+    allowed_origins.append(render_url)
+
 # Add Netlify site URL for production
 netlify_url = os.environ.get('NETLIFY_SITE_URL')
 if netlify_url:
     allowed_origins.append(netlify_url)
+
+# Allow all Netlify preview URLs (for branch deploys)
+allowed_origins.append("https://*.netlify.app")
 
 CORS(app, 
      origins=allowed_origins,
