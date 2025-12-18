@@ -1,0 +1,20 @@
+# Exclude frontend files from Railway deployment
+package.json
+package-lock.json
+node_modules/
+src/
+static/
+vite.config.js
+postcss.config.js
+tailwind.config.js
+netlify.toml
+.env.production
+.env.local
+
+# Only include backend files for Railway deployment
+!main.py
+!requirements.txt
+!Procfile
+!runtime.txt
+!railway.json
+!src/**/*.py

@@ -611,20 +611,6 @@ function App() {
         return <RoleBasedPortal user={user} />
       case 'profile':
         return <UserProfile user={user} />
-      case 'patient-search':
-        return <PatientSearch onSelectPatient={(patient) => {
-          if (patient) {
-            setCurrentView('patient-data');
-          }
-        }} showCreateButton={true} />
-      case 'new-encounter':
-        return <NewEncounter 
-          onEncounterCreated={(encounter) => {
-            alert('Encounter created successfully!');
-            setCurrentView('dashboard');
-          }}
-          onCancel={() => setCurrentView('dashboard')}
-        />
       case 'lab-orders':
         return <LabOrders />
       case 'receptionist':
