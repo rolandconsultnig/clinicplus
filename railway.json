@@ -1,9 +1,12 @@
 {
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "buildCommand": "pip install -r requirements.txt",
+    "watchPatterns": ["**/*.py", "requirements.txt", "Procfile", "runtime.txt"]
   },
   "deploy": {
     "startCommand": "gunicorn main:app --bind 0.0.0.0:$PORT --workers 4",
-    "healthcheckPath": "/api/health"
+    "healthcheckPath": "/api/health",
+    "restartPolicyType": "ON_FAILURE"
   }
 }
