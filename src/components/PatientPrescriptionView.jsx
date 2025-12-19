@@ -300,3 +300,5 @@ export default function PatientPrescriptionView({ patientId }) {
 
 
 
+
+
