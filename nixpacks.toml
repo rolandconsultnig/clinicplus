@@ -16,3 +16,6 @@ cmds = [
 
 [start]
 cmd = ". /opt/venv/bin/activate && gunicorn main:app --bind 0.0.0.0:$PORT --workers 4"
+
+[variables]
+NIXPACKS_NODE_VERSION = "20"
