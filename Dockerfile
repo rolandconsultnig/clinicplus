@@ -1,8 +1,10 @@
 # Use Python base image
 FROM python:3.11-slim
 
-# Install Node.js 20 (which includes npm)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+# Install system dependencies and Node.js 20
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -10,11 +12,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 
 # Install Node.js dependencies
-RUN npm install
+RUN npm ci --only=production --no-audit
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
@@ -26,9 +28,9 @@ COPY . .
 # Build frontend
 RUN npm run build
 
-# Expose port
-EXPOSE $PORT
+# Expose port (Railway sets PORT env var)
+EXPOSE 8080
 
 # Start application
-CMD gunicorn main:app --bind 0.0.0.0:$PORT --workers 4
+CMD gunicorn main:app --bind 0.0.0.0:${PORT:-8080} --workers 4 --timeout 120
 
