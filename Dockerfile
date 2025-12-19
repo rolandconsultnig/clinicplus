@@ -15,8 +15,8 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install Node.js dependencies
-RUN npm ci --only=production --no-audit
+# Install Node.js dependencies (including devDependencies for build)
+RUN npm ci --no-audit
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
