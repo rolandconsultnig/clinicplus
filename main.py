@@ -20,7 +20,7 @@ from src.routes.clinical import clinical_bp
 from src.routes.auth import auth_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'medical_app_secret_key_change_in_production'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'medical_app_secret_key_change_in_production')
 
 # Enable CORS for all routes with proper preflight handling
 # Allow both development and production origins
