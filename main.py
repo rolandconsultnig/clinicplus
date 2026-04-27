@@ -588,13 +588,13 @@ def serve(path):
                 <li><a href="/api/auth">Auth Info</a></li>
             </ul>
             
-            <p><strong>Backend Status:</strong> ✅ Running on port 4300</p>
+            <p><strong>Backend Status:</strong> ✅ Running on port 4301</p>
         </body>
         </html>
         """, 200
     elif os.path.exists(index_path):
         # static/index.html references hashed production bundles; if Vite is up,
-        # serving it from :4300 shows a stale UI. Send users to the dev server.
+        # serving it from :4301 shows a stale UI. Send users to the dev server.
         if vite_running:
             vite_base = os.environ.get('VITE_DEV_URL', 'http://127.0.0.1:4305').rstrip('/')
             loc = f"{vite_base}/" if not path else f"{vite_base}/{path.lstrip('/')}"
@@ -624,4 +624,4 @@ if __name__ == '__main__':
         pass  # Gunicorn will handle this via Procfile
     else:
         # Development mode
-        app.run(host='0.0.0.0', port=4300, debug=True)
+        app.run(host='0.0.0.0', port=4301, debug=True)
