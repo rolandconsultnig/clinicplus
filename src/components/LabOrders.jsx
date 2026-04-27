@@ -132,7 +132,7 @@ const LabOrders = ({ patientId: initialPatientId }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'in_progress': return 'bg-teal-100 text-teal-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -143,7 +143,7 @@ const LabOrders = ({ patientId: initialPatientId }) => {
     switch (priority) {
       case 'stat': return 'bg-red-100 text-red-800';
       case 'urgent': return 'bg-orange-100 text-orange-800';
-      case 'routine': return 'bg-blue-100 text-blue-800';
+      case 'routine': return 'bg-teal-100 text-teal-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -322,7 +322,7 @@ const LabOrders = ({ patientId: initialPatientId }) => {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
               <p className="mt-2 text-gray-600">Loading...</p>
             </div>
           ) : orders.length === 0 ? (
@@ -333,12 +333,12 @@ const LabOrders = ({ patientId: initialPatientId }) => {
           ) : (
             <div className="space-y-4">
               {orders.map((order) => (
-                <Card key={order.id} className="shadow-sm border-l-4 border-l-blue-500">
+                <Card key={order.id} className="shadow-sm border-l-4 border-l-teal-500">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <TestTube className="w-5 h-5 text-blue-600" />
+                          <TestTube className="w-5 h-5 text-teal-700" />
                           <h3 className="font-semibold text-gray-900">{order.test_name}</h3>
                           <Badge className={getStatusColor(order.status || order.order_status)}>
                             {order.status || order.order_status}

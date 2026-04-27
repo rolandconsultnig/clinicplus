@@ -68,7 +68,7 @@ const RootAdminDashboard = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
@@ -100,10 +100,10 @@ const RootAdminDashboard = () => {
   const statistics = dashboardData?.statistics || {};
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/40 to-slate-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Professional Header */}
-        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl shadow-2xl p-8 text-white overflow-hidden">
+        <div className="relative bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 rounded-2xl shadow-2xl p-8 text-white overflow-hidden">
           <div className="absolute inset-0 bg-black/5"></div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
           <div className="relative flex items-center justify-between">
@@ -147,10 +147,10 @@ const RootAdminDashboard = () => {
             {/* Professional Key Metrics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="group border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-0 group-hover:opacity-5 transition-opacity"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-teal-600 opacity-0 group-hover:opacity-5 transition-opacity"></div>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative">
                   <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Organizations</CardTitle>
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
                     <Building2 className="h-6 w-6 text-white" />
                   </div>
                 </CardHeader>
@@ -158,7 +158,7 @@ const RootAdminDashboard = () => {
                   <div className="text-4xl font-bold text-gray-900 mb-2">{summary.total_organizations || 0}</div>
                   <p className="text-xs text-gray-500">All registered organizations</p>
                   <div className="h-1 bg-gray-100 rounded-full overflow-hidden mt-3">
-                    <div className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full" style={{ width: '85%' }}></div>
+                    <div className="h-full bg-gradient-to-r from-teal-500 to-teal-600 rounded-full" style={{ width: '85%' }}></div>
                   </div>
                 </CardContent>
               </Card>
@@ -229,31 +229,31 @@ const RootAdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200">
+                  <div className="bg-gradient-to-br from-teal-50 to-slate-100 p-6 rounded-lg border border-teal-200">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-700">Level 1 Pending</span>
-                      <Badge className="bg-blue-600">{approvalBreakdown.level_1_pending || 0}</Badge>
+                      <span className="text-sm font-medium text-teal-800">Level 1 Pending</span>
+                      <Badge className="bg-teal-600">{approvalBreakdown.level_1_pending || 0}</Badge>
                     </div>
-                    <div className="text-3xl font-bold text-blue-900">{approvalBreakdown.level_1_pending || 0}</div>
-                    <p className="text-xs text-blue-600 mt-1">Initial review</p>
+                    <div className="text-3xl font-bold text-teal-900">{approvalBreakdown.level_1_pending || 0}</div>
+                    <p className="text-xs text-teal-700 mt-1">Initial review</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg border border-purple-200">
+                  <div className="bg-gradient-to-br from-teal-50 to-slate-100 p-6 rounded-lg border border-teal-200">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-purple-700">Level 2 Pending</span>
-                      <Badge className="bg-purple-600">{approvalBreakdown.level_2_pending || 0}</Badge>
+                      <span className="text-sm font-medium text-teal-800">Level 2 Pending</span>
+                      <Badge className="bg-teal-600">{approvalBreakdown.level_2_pending || 0}</Badge>
                     </div>
-                    <div className="text-3xl font-bold text-purple-900">{approvalBreakdown.level_2_pending || 0}</div>
-                    <p className="text-xs text-purple-600 mt-1">Secondary review</p>
+                    <div className="text-3xl font-bold text-teal-900">{approvalBreakdown.level_2_pending || 0}</div>
+                    <p className="text-xs text-teal-700 mt-1">Secondary review</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-lg border border-indigo-200">
+                  <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-lg border border-teal-200">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-indigo-700">Level 3 Pending</span>
-                      <Badge className="bg-indigo-600">{approvalBreakdown.level_3_pending || 0}</Badge>
+                      <span className="text-sm font-medium text-teal-800">Level 3 Pending</span>
+                      <Badge className="bg-teal-600">{approvalBreakdown.level_3_pending || 0}</Badge>
                     </div>
-                    <div className="text-3xl font-bold text-indigo-900">{approvalBreakdown.level_3_pending || 0}</div>
-                    <p className="text-xs text-indigo-600 mt-1">Final review</p>
+                    <div className="text-3xl font-bold text-slate-900">{approvalBreakdown.level_3_pending || 0}</div>
+                    <p className="text-xs text-teal-700 mt-1">Final review</p>
                   </div>
                 </div>
               </CardContent>
@@ -413,7 +413,7 @@ const RootAdminDashboard = () => {
               <Card className="shadow-md">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-blue-600" />
+                    <TrendingUp className="w-5 h-5 text-teal-700" />
                     Organization Growth
                   </CardTitle>
                   <CardDescription>Monthly organization registration trends</CardDescription>
@@ -433,7 +433,7 @@ const RootAdminDashboard = () => {
               <Card className="shadow-md">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-purple-600" />
+                    <BarChart3 className="w-5 h-5 text-teal-700" />
                     Subscription Tiers
                   </CardTitle>
                   <CardDescription>Distribution of subscription plans</CardDescription>
@@ -543,12 +543,12 @@ const RootAdminDashboard = () => {
           {/* Statistics Tab */}
           <TabsContent value="statistics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="border-l-4 border-l-blue-500 shadow-md">
+              <Card className="border-l-4 border-l-teal-500 shadow-md">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600">Organizations Created This Month</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-blue-600">{statistics.organizations_created_this_month || 0}</div>
+                  <div className="text-3xl font-bold text-teal-700">{statistics.organizations_created_this_month || 0}</div>
                   <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                     <ArrowUpRight className="w-3 h-3" />
                     New registrations
@@ -569,12 +569,12 @@ const RootAdminDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-purple-500 shadow-md">
+              <Card className="border-l-4 border-l-teal-500 shadow-md">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600">Total Users</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-purple-600">{statistics.total_users || 0}</div>
+                  <div className="text-3xl font-bold text-teal-700">{statistics.total_users || 0}</div>
                   <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                     <Users className="w-3 h-3" />
                     Across all organizations
@@ -582,12 +582,12 @@ const RootAdminDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-indigo-500 shadow-md">
+              <Card className="border-l-4 border-l-teal-500 shadow-md">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600">Total Facilities</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-indigo-600">{statistics.total_facilities || 0}</div>
+                  <div className="text-3xl font-bold text-teal-700">{statistics.total_facilities || 0}</div>
                   <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                     <Building className="w-3 h-3" />
                     Healthcare facilities

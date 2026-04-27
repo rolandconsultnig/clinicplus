@@ -164,7 +164,7 @@ export default function PatientPortalManagement() {
           <Card>
             <CardContent className="p-4">
               <p className="text-sm text-gray-600">Active Users (30d)</p>
-              <p className="text-2xl font-bold text-blue-600">{portalStats.active_users_30d}</p>
+              <p className="text-2xl font-bold text-teal-700">{portalStats.active_users_30d}</p>
             </CardContent>
           </Card>
           <Card>

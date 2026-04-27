@@ -15,11 +15,12 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
+    port: 4305,
+    // host: true allows access from any hostname including subdomains (e.g., elvis.localhost:4305)
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:4300',
         changeOrigin: true,
       },
     },

@@ -148,7 +148,7 @@ export default function EmergencyModule() {
       case 'emergency': return 'bg-orange-600 text-white'
       case 'urgent': return 'bg-yellow-600 text-white'
       case 'semi-urgent': return 'bg-green-600 text-white'
-      case 'non-urgent': return 'bg-blue-600 text-white'
+      case 'non-urgent': return 'bg-teal-600 text-white'
       default: return 'bg-gray-600 text-white'
     }
   }
@@ -219,7 +219,7 @@ export default function EmergencyModule() {
                 <p className="text-sm text-gray-600">In Triage</p>
                 <p className="text-2xl font-bold">{triageQueue.length}</p>
               </div>
-              <Users className="w-8 h-8 text-blue-600" />
+              <Users className="w-8 h-8 text-teal-700" />
             </div>
           </CardContent>
         </Card>
@@ -262,7 +262,7 @@ export default function EmergencyModule() {
 
       {/* Triage Form Modal */}
       {showTriageForm && (
-        <Card className="border-2 border-blue-500">
+        <Card className="border-2 border-teal-500">
           <CardHeader>
             <CardTitle>Emergency Triage Assessment</CardTitle>
             <CardDescription>Complete initial patient assessment</CardDescription>

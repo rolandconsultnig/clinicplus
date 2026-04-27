@@ -267,7 +267,7 @@ export default function ProfessionalCredentialing() {
       case 'active': return 'bg-green-100 text-green-800'
       case 'expiring': return 'bg-yellow-100 text-yellow-800'
       case 'expired': return 'bg-red-100 text-red-800'
-      case 'pending': return 'bg-blue-100 text-blue-800'
+      case 'pending': return 'bg-teal-100 text-teal-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -366,7 +366,7 @@ export default function ProfessionalCredentialing() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Award className="w-8 h-8 text-purple-600" />
+            <Award className="w-8 h-8 text-teal-700" />
             Professional Credentialing
           </h1>
           <p className="text-gray-600 mt-1">Manage provider licenses and certifications</p>
@@ -436,7 +436,7 @@ export default function ProfessionalCredentialing() {
           {providers.map((provider) => (
             <Card 
               key={provider.id} 
-              className={`cursor-pointer hover:bg-gray-50 ${selectedProvider?.id === provider.id ? 'border-2 border-blue-500' : ''}`}
+              className={`cursor-pointer hover:bg-gray-50 ${selectedProvider?.id === provider.id ? 'border-2 border-teal-500' : ''}`}
               onClick={() => {
                 setSelectedProvider(provider)
                 loadCredentials(provider.id)
@@ -459,7 +459,7 @@ export default function ProfessionalCredentialing() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-gray-600">Credentials</p>
-                    <p className="text-2xl font-bold text-blue-600">{provider.credential_count || 0}</p>
+                    <p className="text-2xl font-bold text-teal-700">{provider.credential_count || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -471,7 +471,7 @@ export default function ProfessionalCredentialing() {
         <TabsContent value="credentials" className="space-y-4">
           {selectedProvider ? (
             <>
-              <Card className="bg-blue-50">
+              <Card className="bg-teal-50">
                 <CardContent className="pt-6">
                   <h3 className="font-semibold text-lg mb-1">{selectedProvider.name}</h3>
                   <p className="text-sm text-gray-600">{selectedProvider.specialty}</p>
@@ -485,7 +485,7 @@ export default function ProfessionalCredentialing() {
                       <div className="flex items-start justify-between">
                         <div>
                           <CardTitle className="flex items-center gap-2">
-                            <Award className="w-5 h-5 text-purple-600" />
+                            <Award className="w-5 h-5 text-teal-700" />
                             {credential.credential_type}
                           </CardTitle>
                           <CardDescription>{credential.issuing_organization}</CardDescription>
@@ -703,11 +703,11 @@ export default function ProfessionalCredentialing() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-blue-50 border-blue-200">
+                <Card className="bg-teal-50 border-teal-200">
                   <CardContent className="pt-6">
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Expiring in 90 Days</p>
-                      <p className="text-3xl font-bold text-blue-600">{expirationDashboard.counts.expiring_90}</p>
+                      <p className="text-3xl font-bold text-teal-700">{expirationDashboard.counts.expiring_90}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -864,7 +864,7 @@ export default function ProfessionalCredentialing() {
                   <div className="space-y-4">
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Average TAT</p>
-                      <p className="text-4xl font-bold text-blue-600">{reports.turnaroundTime.average_tat_days.toFixed(1)} days</p>
+                      <p className="text-4xl font-bold text-teal-700">{reports.turnaroundTime.average_tat_days.toFixed(1)} days</p>
                     </div>
                     <div className="grid grid-cols-4 gap-4">
                       <div className="text-center p-3 bg-green-50 rounded">

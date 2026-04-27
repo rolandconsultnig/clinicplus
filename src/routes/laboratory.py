@@ -5,10 +5,48 @@ Complete workflow: Pre-Analytical → Analytical → Post-Analytical
 from flask import Blueprint, request, jsonify
 from src.auth.jwt_manager import token_required, role_required
 from src.models.user import db
+from src.models.patient import Patient
+from src.models.clinical import LabOrder, LabResult, LabSpecimen, LabQCRecord, LabInventoryItem
 from datetime import datetime, date, timedelta
 import uuid
+import json
 
 laboratory_bp = Blueprint('laboratory', __name__)
+_tables_ready = False
+
+
+def _ensure_lab_tables():
+    global _tables_ready
+    if _tables_ready:
+        return
+    tables = [
+        LabOrder.__table__,
+        LabResult.__table__,
+        LabSpecimen.__table__,
+        LabQCRecord.__table__,
+        LabInventoryItem.__table__,
+    ]
+    for table in tables:
+        table.create(bind=db.engine, checkfirst=True)
+
+    if LabQCRecord.query.count() == 0:
+        db.session.add_all([
+            LabQCRecord(analyzer='Sysmex XN-1000', parameter='WBC', control_level='Level 1', expected_value='5.0', measured_value='4.9', status='pass'),
+            LabQCRecord(analyzer='Cobas 6000', parameter='ALT', control_level='Level 1', expected_value='25', measured_value='27', status='pass'),
+        ])
+    if LabInventoryItem.query.count() == 0:
+        db.session.add_all([
+            LabInventoryItem(item='CBC Reagent', stock=45, reorder_level=20, expiry_date=date.today() + timedelta(days=180)),
+            LabInventoryItem(item='LFT Reagent', stock=12, reorder_level=20, expiry_date=date.today() + timedelta(days=120)),
+            LabInventoryItem(item='EDTA Tubes', stock=150, reorder_level=50, expiry_date=date.today() + timedelta(days=365)),
+        ])
+    db.session.commit()
+    _tables_ready = True
+
+
+@laboratory_bp.before_request
+def initialize_lis_module():
+    _ensure_lab_tables()
 
 # Phase I: Pre-Analytical
 
@@ -17,31 +55,21 @@ laboratory_bp = Blueprint('laboratory', __name__)
 def get_pending_orders():
     """Get pending lab orders awaiting billing clearance"""
     try:
-        # Mock data - in production, query from database
-        orders = [
-            {
-                'id': 1,
-                'patient_name': 'John Doe',
-                'mrn': 'MRN001234',
-                'tests': ['CBC', 'LFT', 'RFT'],
-                'ordering_physician': 'Dr. Smith',
-                'order_date': datetime.now().isoformat(),
-                'specimen_type': '5ml EDTA Blood',
+        rows = LabOrder.query.filter(LabOrder.status.in_(['pending', 'in_progress'])).order_by(LabOrder.order_date.desc()).all()
+        orders = []
+        for row in rows:
+            patient = Patient.query.get(row.patient_id)
+            orders.append({
+                'id': row.id,
+                'patient_name': f'{patient.first_name} {patient.last_name}' if patient else f'Patient #{row.patient_id}',
+                'mrn': patient.universal_patient_id if patient else str(row.patient_id),
+                'tests': [row.test_name],
+                'ordering_physician': f'Provider #{row.ordering_provider_id}',
+                'order_date': row.order_date.isoformat() if row.order_date else None,
+                'specimen_type': row.specimen_type or 'Unknown',
                 'payment_status': 'paid',
-                'priority': 'routine'
-            },
-            {
-                'id': 2,
-                'patient_name': 'Jane Smith',
-                'mrn': 'MRN005678',
-                'tests': ['Lipid Profile', 'HbA1c'],
-                'ordering_physician': 'Dr. Johnson',
-                'order_date': datetime.now().isoformat(),
-                'specimen_type': '3ml Serum',
-                'payment_status': 'pending',
-                'priority': 'routine'
-            }
-        ]
+                'priority': row.priority or 'routine'
+            })
         
         return jsonify({
             'success': True,
@@ -56,13 +84,42 @@ def get_pending_orders():
 def accession_specimen():
     """Accession a specimen and generate barcode"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         order_id = data.get('order_id')
+        if not order_id:
+            return jsonify({'error': 'order_id is required'}), 400
+        order = LabOrder.query.get_or_404(order_id)
+        existing = LabSpecimen.query.filter_by(lab_order_id=order.id).first()
+        if existing:
+            return jsonify({
+                'success': True,
+                'accession_number': existing.accession_number,
+                'barcode_data': existing.accession_number,
+                'message': 'Specimen already accessioned'
+            }), 200
         
         # Generate unique accession number
         accession_number = f"LAB{datetime.now().strftime('%Y%m%d')}{uuid.uuid4().hex[:6].upper()}"
-        
-        # In production, create specimen record in database
+        custody_log = [{
+            'timestamp': datetime.utcnow().strftime('%H:%M'),
+            'action': 'Collected',
+            'user': f'User #{getattr(request.current_user, "id", "system")}'
+        }]
+        specimen = LabSpecimen(
+            accession_number=accession_number,
+            lab_order_id=order.id,
+            patient_id=order.patient_id,
+            specimen_type=order.specimen_type or 'Unknown',
+            collection_time=datetime.utcnow(),
+            collected_by=f'User #{getattr(request.current_user, "id", "system")}',
+            status='collected',
+            current_location='Laboratory Reception',
+            storage_temp='4',
+            custody_log_json=json.dumps(custody_log),
+        )
+        order.status = 'in_progress'
+        db.session.add(specimen)
+        db.session.commit()
         
         return jsonify({
             'success': True,
@@ -79,33 +136,17 @@ def accession_specimen():
 def get_specimens():
     """Get all specimens with chain of custody"""
     try:
-        specimens = [
-            {
-                'id': 1,
-                'accession_number': 'LAB20251202ABC123',
-                'patient_name': 'John Doe',
-                'mrn': 'MRN001234',
-                'specimen_type': 'EDTA Blood',
-                'collection_time': datetime.now().isoformat(),
-                'collected_by': 'Phlebotomist Jane',
-                'tests': ['CBC', 'LFT'],
-                'status': 'collected',
-                'current_location': 'Hematology Lab',
-                'storage_temp': '4',
-                'custody_log': [
-                    {
-                        'timestamp': datetime.now().strftime('%H:%M'),
-                        'action': 'Collected',
-                        'user': 'Phlebotomist Jane'
-                    },
-                    {
-                        'timestamp': (datetime.now() + timedelta(minutes=15)).strftime('%H:%M'),
-                        'action': 'Received at Lab',
-                        'user': 'Lab Tech Mike'
-                    }
-                ]
-            }
-        ]
+        rows = LabSpecimen.query.order_by(LabSpecimen.collection_time.desc()).all()
+        specimens = []
+        for row in rows:
+            patient = Patient.query.get(row.patient_id)
+            order = LabOrder.query.get(row.lab_order_id)
+            specimens.append({
+                **row.to_dict(),
+                'patient_name': f'{patient.first_name} {patient.last_name}' if patient else f'Patient #{row.patient_id}',
+                'mrn': patient.universal_patient_id if patient else str(row.patient_id),
+                'tests': [order.test_name] if order else []
+            })
         
         return jsonify({
             'success': True,
@@ -122,30 +163,24 @@ def get_specimens():
 def get_worklist():
     """Get daily worklist for testing"""
     try:
-        worklist = [
-            {
-                'id': 1,
-                'accession_number': 'LAB20251202ABC123',
-                'patient_name': 'John Doe',
-                'test_name': 'Complete Blood Count (CBC)',
-                'analyzer': 'Sysmex XN-1000',
-                'priority': 'ROUTINE',
-                'status': 'pending',
+        rows = LabSpecimen.query.filter(LabSpecimen.status.in_(['collected', 'received', 'processing'])).order_by(LabSpecimen.collection_time.asc()).all()
+        worklist = []
+        for row in rows:
+            order = LabOrder.query.get(row.lab_order_id)
+            patient = Patient.query.get(row.patient_id)
+            if not order:
+                continue
+            worklist.append({
+                'id': row.id,
+                'accession_number': row.accession_number,
+                'patient_name': f'{patient.first_name} {patient.last_name}' if patient else f'Patient #{row.patient_id}',
+                'test_name': order.test_name,
+                'analyzer': 'General Analyzer',
+                'priority': (order.priority or 'routine').upper(),
+                'status': 'processing' if row.status == 'processing' else 'pending',
                 'turnaround_time': '2 hours',
-                'specimen_type': 'EDTA Blood'
-            },
-            {
-                'id': 2,
-                'accession_number': 'LAB20251202DEF456',
-                'patient_name': 'Jane Smith',
-                'test_name': 'Liver Function Test (LFT)',
-                'analyzer': 'Cobas 6000',
-                'priority': 'STAT',
-                'status': 'processing',
-                'turnaround_time': '1 hour',
-                'specimen_type': 'Serum'
-            }
-        ]
+                'specimen_type': row.specimen_type
+            })
         
         return jsonify({
             'success': True,
@@ -162,48 +197,39 @@ def get_worklist():
 def get_results():
     """Get results pending validation"""
     try:
-        results = [
-            {
-                'id': 1,
-                'accession_number': 'LAB20251202ABC123',
-                'patient_name': 'John Doe',
-                'test_name': 'Hemoglobin',
-                'value': '8.5',
-                'unit': 'g/dL',
-                'reference_range': '13.5-17.5',
-                'is_abnormal': True,
-                'is_critical': True,
-                'method': 'Automated Analyzer',
-                'validation_status': 'pending',
+        rows = LabResult.query.order_by(LabResult.result_date.desc()).all()
+        results = []
+        for row in rows:
+            patient = Patient.query.get(row.patient_id)
+            order = LabOrder.query.get(row.lab_order_id)
+            specimen = LabSpecimen.query.filter_by(lab_order_id=row.lab_order_id).first()
+            previous = LabResult.query.filter(
+                LabResult.patient_id == row.patient_id,
+                LabResult.test_name == row.test_name,
+                LabResult.id != row.id
+            ).order_by(LabResult.result_date.desc()).limit(2).all()
+            previous_results = [{'date': p.result_date.date().isoformat() if p.result_date else None, 'value': p.result_value} for p in previous]
+            is_critical = (row.status or '').lower() == 'critical' or (row.abnormal_flag or '').lower() == 'critical'
+            is_abnormal = is_critical or (row.status or '').lower() in ['abnormal', 'high', 'low'] or (row.abnormal_flag or '').lower() in ['abnormal', 'high', 'low']
+            results.append({
+                'id': row.id,
+                'accession_number': specimen.accession_number if specimen else '',
+                'patient_name': f'{patient.first_name} {patient.last_name}' if patient else f'Patient #{row.patient_id}',
+                'test_name': row.test_name,
+                'value': row.result_value,
+                'unit': row.result_unit or row.units or '',
+                'reference_range': row.reference_range,
+                'is_abnormal': is_abnormal,
+                'is_critical': is_critical,
+                'method': row.performing_lab or 'Analyzer',
+                'validation_status': 'validated' if (row.result_status or '').lower() == 'final' else 'pending',
                 'qc_checks': {
                     'reference_range': True,
                     'delta_check': True,
                     'instrument_qc': True
                 },
-                'previous_results': [
-                    {'date': '2025-11-01', 'value': '12.5'},
-                    {'date': '2025-10-01', 'value': '13.2'}
-                ]
-            },
-            {
-                'id': 2,
-                'accession_number': 'LAB20251202ABC123',
-                'patient_name': 'John Doe',
-                'test_name': 'ALT (SGPT)',
-                'value': '45',
-                'unit': 'U/L',
-                'reference_range': '7-56',
-                'is_abnormal': False,
-                'is_critical': False,
-                'method': 'Automated Analyzer',
-                'validation_status': 'pending',
-                'qc_checks': {
-                    'reference_range': True,
-                    'delta_check': True,
-                    'instrument_qc': True
-                }
-            }
-        ]
+                'previous_results': previous_results
+            })
         
         return jsonify({
             'success': True,
@@ -219,10 +245,10 @@ def get_results():
 def validate_result(result_id):
     """Validate and publish lab result"""
     try:
-        # In production, update result status in database
-        # Generate report
-        # Publish to EHR
-        # Send critical value alerts if needed
+        result = LabResult.query.get_or_404(result_id)
+        result.result_status = 'final'
+        result.status = result.status or 'normal'
+        db.session.commit()
         
         return jsonify({
             'success': True,
@@ -231,6 +257,7 @@ def validate_result(result_id):
         }), 200
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @laboratory_bp.route('/critical-values', methods=['GET'])
@@ -238,19 +265,27 @@ def validate_result(result_id):
 def get_critical_values():
     """Get critical values requiring immediate notification"""
     try:
-        critical = [
-            {
-                'id': 1,
-                'patient_name': 'John Doe',
-                'test_name': 'Potassium',
-                'value': '2.8',
-                'unit': 'mmol/L',
-                'reference_range': '3.5-5.0',
-                'severity': 'critical_low',
-                'ordering_physician': 'Dr. Smith',
+        rows = LabResult.query.filter(
+            db.or_(
+                LabResult.status == 'critical',
+                LabResult.abnormal_flag == 'critical'
+            )
+        ).order_by(LabResult.result_date.desc()).all()
+        critical = []
+        for row in rows:
+            patient = Patient.query.get(row.patient_id)
+            order = LabOrder.query.get(row.lab_order_id)
+            critical.append({
+                'id': row.id,
+                'patient_name': f'{patient.first_name} {patient.last_name}' if patient else f'Patient #{row.patient_id}',
+                'test_name': row.test_name,
+                'value': row.result_value,
+                'unit': row.result_unit or row.units or '',
+                'reference_range': row.reference_range,
+                'severity': 'critical',
+                'ordering_physician': f'Provider #{order.ordering_provider_id}' if order else 'Unknown',
                 'notification_sent': False
-            }
-        ]
+            })
         
         return jsonify({
             'success': True,
@@ -267,17 +302,7 @@ def get_critical_values():
 def get_qc_data():
     """Get quality control data"""
     try:
-        qc = [
-            {
-                'analyzer': 'Sysmex XN-1000',
-                'parameter': 'WBC',
-                'control_level': 'Level 1',
-                'expected_value': '5.0',
-                'measured_value': '4.9',
-                'status': 'pass',
-                'timestamp': datetime.now().isoformat()
-            }
-        ]
+        qc = [q.to_dict() for q in LabQCRecord.query.order_by(LabQCRecord.recorded_at.desc()).limit(200).all()]
         
         return jsonify({
             'success': True,
@@ -294,17 +319,41 @@ def get_qc_data():
 def get_tat_analytics():
     """Get turnaround time analytics"""
     try:
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        yesterday_start = today_start - timedelta(days=1)
+        tests_today = LabOrder.query.filter(LabOrder.order_date >= today_start).count()
+        tests_yesterday = LabOrder.query.filter(
+            LabOrder.order_date >= yesterday_start,
+            LabOrder.order_date < today_start
+        ).count()
+        critical_today = LabResult.query.filter(
+            LabResult.result_date >= today_start,
+            db.or_(LabResult.status == 'critical', LabResult.abnormal_flag == 'critical')
+        ).count()
+
+        completed_results = LabResult.query.join(LabOrder, LabResult.lab_order_id == LabOrder.id).all()
+        tat_values = []
+        per_test = {}
+        for result in completed_results:
+            order = LabOrder.query.get(result.lab_order_id)
+            if not order or not order.order_date or not result.result_date:
+                continue
+            hours = (result.result_date - order.order_date).total_seconds() / 3600
+            tat_values.append(hours)
+            per_test.setdefault(result.test_name, []).append(hours)
+        avg_tat_hours = round(sum(tat_values) / len(tat_values), 2) if tat_values else 0
+        tat_by_test = [
+            {'test': name, 'avg_tat': f"{round(sum(values)/len(values), 2)} hours"}
+            for name, values in per_test.items()
+        ]
+
         analytics = {
-            'average_tat': '2.5 hours',
+            'average_tat': f'{avg_tat_hours} hours',
             'target_tat': '4 hours',
-            'tests_today': 247,
-            'tests_yesterday': 220,
-            'critical_values_today': 5,
-            'tat_by_test': [
-                {'test': 'CBC', 'avg_tat': '1.5 hours'},
-                {'test': 'LFT', 'avg_tat': '2.0 hours'},
-                {'test': 'RFT', 'avg_tat': '2.5 hours'}
-            ]
+            'tests_today': tests_today,
+            'tests_yesterday': tests_yesterday,
+            'critical_values_today': critical_today,
+            'tat_by_test': tat_by_test
         }
         
         return jsonify({
@@ -320,22 +369,7 @@ def get_tat_analytics():
 def get_inventory():
     """Get reagent and consumable inventory"""
     try:
-        inventory = [
-            {
-                'item': 'CBC Reagent',
-                'stock': 45,
-                'reorder_level': 20,
-                'expiry_date': '2025-06-30',
-                'status': 'ok'
-            },
-            {
-                'item': 'LFT Reagent',
-                'stock': 12,
-                'reorder_level': 20,
-                'expiry_date': '2025-05-15',
-                'status': 'low'
-            }
-        ]
+        inventory = [item.to_dict() for item in LabInventoryItem.query.order_by(LabInventoryItem.item.asc()).all()]
         
         return jsonify({
             'success': True,

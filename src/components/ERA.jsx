@@ -59,7 +59,7 @@ const ERA = () => {
     switch (status) {
       case 'processed': return 'bg-green-100 text-green-800';
       case 'processing': return 'bg-yellow-100 text-yellow-800';
-      case 'received': return 'bg-blue-100 text-blue-800';
+      case 'received': return 'bg-teal-100 text-teal-800';
       case 'error': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -99,7 +99,7 @@ const ERA = () => {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
               <p className="text-gray-600 mt-2">Loading ERAs...</p>
             </div>
           ) : filteredERAs.length === 0 ? (
@@ -143,7 +143,7 @@ const ERA = () => {
                         {era.total_paid && (
                           <div>
                             <p className="font-semibold text-gray-700">Total Paid</p>
-                            <p className="text-blue-600">${era.total_paid.toFixed(2)}</p>
+                            <p className="text-teal-700">${era.total_paid.toFixed(2)}</p>
                           </div>
                         )}
                       </div>

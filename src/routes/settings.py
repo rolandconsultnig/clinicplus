@@ -10,6 +10,24 @@ import json
 
 settings_bp = Blueprint('settings', __name__)
 
+
+def _extract_user_roles():
+    roles = request.token_payload.get('roles', [])
+    extracted = []
+    for role in roles:
+        if isinstance(role, dict):
+            extracted.append(str(role.get('role_name', '')).lower())
+        else:
+            extracted.append(str(role).lower())
+    return [r for r in extracted if r]
+
+
+def _is_admin_user():
+    user_type = str(request.token_payload.get('user_type', '')).lower()
+    admin_roles = {'system administrator', 'admin', 'administrator', 'facility administrator'}
+    user_roles = set(_extract_user_roles())
+    return user_type == 'admin' or not user_roles.isdisjoint(admin_roles)
+
 # Comprehensive timezone list
 TIMEZONES = [
     {'value': 'UTC', 'label': 'UTC (Coordinated Universal Time)', 'offset': '+00:00'},
@@ -362,46 +380,71 @@ SYSTEM_SETTINGS = {
         'font_family': 'Roboto',
         'heading_font': 'Raleway',
         'enable_dark_mode': False,
-        'logo_path': '/logo.png',
-        'favicon_path': '/logo.png',
+        'logo_path': '/images/logo.png',
+        'favicon_path': '/images/clinicplus-favicon-32.png',
         'custom_css': '',
         'enable_custom_colors': False
     },
     'landing_page': {
-        # Hero Section
+        # Hero (defaults mirror src/config/landingPageDefaults.js)
         'hero_title': 'Advanced Medical Care for Your Family\'s Health',
         'hero_subtitle': 'Universal Patient-Owned Health Ecosystem',
-        'hero_description': 'Clinic+ is a comprehensive, patient-centered healthcare platform that puts you in control of your medical records while connecting you with trusted healthcare providers.',
+        'hero_description': (
+            'Clinic+ is a comprehensive, patient-centered healthcare platform that puts you in control of '
+            'your medical records while connecting you with trusted healthcare providers. From registration '
+            'and scheduling to labs, imaging, and billing, your information stays organized, secure, and ready '
+            'when you need it.'
+        ),
         'hero_image': '/themes/MediTrust/assets/img/health/showcase-1.webp',
         'hero_primary_button_text': 'Get Started',
         'hero_primary_button_link': '/login',
         'hero_secondary_button_text': 'Explore Services',
         'hero_secondary_button_link': '/services',
-        # Trust Badges
         'badge_1_icon': 'bi-shield-check-fill',
         'badge_1_title': 'HIPAA Compliant',
-        'badge_1_subtitle': 'Secure & Private',
+        'badge_1_subtitle': (
+            'Secure & Private — role-based access, encryption in transit, audit-friendly activity, and consent '
+            'workflows aligned with how regulated organizations expect to operate.'
+        ),
         'badge_2_icon': 'bi-telephone-fill',
         'badge_2_title': 'Emergency Line',
-        'badge_2_subtitle': '24/7 Support Available',
+        'badge_2_subtitle': (
+            '24/7 Support Available — after-hours escalation paths for urgent clinical or access issues so your '
+            'facility is never without a lifeline when minutes matter.'
+        ),
         'badge_3_icon': 'bi-star-fill',
         'badge_3_title': 'Patient-Centered',
-        'badge_3_subtitle': '4.9/5 Rating',
-        # Features Section
+        'badge_3_subtitle': (
+            'Designed around the care journey — clear timelines, transparent billing touchpoints, and tools that '
+            'keep patients, families, and care teams aligned.'
+        ),
         'feature_1_icon': 'bi-heart-pulse-fill',
         'feature_1_title': 'Patient Records',
-        'feature_1_description': 'Own and control your complete medical history with secure, encrypted storage.',
+        'feature_1_description': (
+            'Own and control your complete medical history with secure, encrypted storage. View allergies, '
+            'medications, immunizations, visit summaries, and documents in one place; share what you choose with '
+            'new providers without repeating your story from scratch.'
+        ),
         'feature_2_icon': 'bi-calendar-check-fill',
         'feature_2_title': 'Appointments',
-        'feature_2_description': 'Schedule and manage appointments with healthcare providers seamlessly.',
+        'feature_2_description': (
+            'Schedule and manage appointments with healthcare providers seamlessly. See real-time availability, '
+            'receive reminders, reschedule when plans change, and keep OPD, telehealth, and follow-up visits '
+            'organized from a single calendar-aware workflow.'
+        ),
         'feature_3_icon': 'bi-capsule',
         'feature_3_title': 'ePrescribing',
-        'feature_3_description': 'Digital prescriptions with drug interaction checks and pharmacy integration.',
-        # About Section
+        'feature_3_description': (
+            'Digital prescriptions with drug interaction checks and pharmacy integration. Reduce handwriting '
+            'errors, support renewals and substitutions where policy allows, and give patients a clearer path from '
+            'diagnosis to dispense.'
+        ),
         'about_title': 'Why Choose Clinic+?',
-        'about_description': 'Complete control over your medical records with enterprise-grade security and seamless healthcare provider integration.',
+        'about_description': (
+            'Complete control over your medical records with enterprise-grade security and seamless healthcare '
+            'provider integration — so you spend less time on paperwork and more time on care.'
+        ),
         'about_image': '/themes/MediTrust/assets/img/health/facilities-1.webp',
-        # Meta Content
         'meta_title': 'Clinic+ - Advanced Healthcare Management Platform',
         'meta_description': 'Comprehensive healthcare platform with patient-centered design',
         'meta_keywords': 'healthcare, medical records, patient portal, clinic management'
@@ -413,17 +456,7 @@ SYSTEM_SETTINGS = {
 def get_settings():
     """Get all system settings"""
     try:
-        # Check if user has admin role or admin user_type
-        user_roles = [role['role_name'] for role in request.token_payload.get('roles', [])]
-        user_type = request.token_payload.get('user_type', '').lower()
-        
-        # Admin roles (case-insensitive check)
-        admin_roles = ['system administrator', 'admin', 'administrator', 'facility administrator']
-        user_roles_lower = [r.lower() for r in user_roles]
-        has_admin_role = any(admin_role in user_roles_lower for admin_role in admin_roles)
-        is_admin_user = user_type == 'admin'
-        
-        if not (has_admin_role or is_admin_user):
+        if not _is_admin_user():
             return jsonify({'error': 'Insufficient permissions', 'message': 'You do not have permission to access system settings'}), 403
         
         category = request.args.get('category')
@@ -460,16 +493,8 @@ def get_landing_page_content():
 def get_category_settings(category):
     """Get settings for a specific category"""
     try:
-        # Check if user has admin role or admin user_type
-        user_roles = [role['role_name'] for role in request.token_payload.get('roles', [])]
-        user_type = request.token_payload.get('user_type', '').lower()
-        
-        admin_roles = ['system administrator', 'admin', 'administrator', 'facility administrator']
-        user_roles_lower = [r.lower() for r in user_roles]
-        has_admin_role = any(admin_role in user_roles_lower for admin_role in admin_roles)
-        is_admin_user = user_type == 'admin'
-        
-        if not (has_admin_role or is_admin_user):
+        # Appearance theme data is safe for any authenticated user.
+        if category != 'appearance' and not _is_admin_user():
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         if category not in SYSTEM_SETTINGS:
@@ -489,24 +514,22 @@ def get_category_settings(category):
 def update_category_settings(category):
     """Update settings for a specific category"""
     try:
-        # Check if user has admin role or admin user_type
-        user_roles = [role['role_name'] for role in request.token_payload.get('roles', [])]
-        user_type = request.token_payload.get('user_type', '').lower()
-        
-        admin_roles = ['system administrator', 'admin', 'administrator', 'facility administrator']
-        user_roles_lower = [r.lower() for r in user_roles]
-        has_admin_role = any(admin_role in user_roles_lower for admin_role in admin_roles)
-        is_admin_user = user_type == 'admin'
-        
-        if not (has_admin_role or is_admin_user):
-            return jsonify({'error': 'Insufficient permissions'}), 403
-        
         if category not in SYSTEM_SETTINGS:
             return jsonify({'error': f'Category {category} not found'}), 404
         
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
+
+        is_admin = _is_admin_user()
+        if not is_admin:
+            # Non-admin users can only update their theme preference.
+            if category != 'appearance':
+                return jsonify({'error': 'Insufficient permissions'}), 403
+            allowed_keys = {'theme'}
+            disallowed = [k for k in data.keys() if k not in allowed_keys]
+            if disallowed:
+                return jsonify({'error': f'Non-admin can only update: {", ".join(sorted(allowed_keys))}'}), 403
         
         # Update settings
         SYSTEM_SETTINGS[category].update(data)
@@ -526,17 +549,11 @@ def update_category_settings(category):
 def update_setting(category, key):
     """Update a specific setting"""
     try:
-        # Check if user has admin role or admin user_type
-        user_roles = [role['role_name'] for role in request.token_payload.get('roles', [])]
-        user_type = request.token_payload.get('user_type', '').lower()
-        
-        admin_roles = ['system administrator', 'admin', 'administrator', 'facility administrator']
-        user_roles_lower = [r.lower() for r in user_roles]
-        has_admin_role = any(admin_role in user_roles_lower for admin_role in admin_roles)
-        is_admin_user = user_type == 'admin'
-        
-        if not (has_admin_role or is_admin_user):
-            return jsonify({'error': 'Insufficient permissions'}), 403
+        is_admin = _is_admin_user()
+        if not is_admin:
+            # Allow users to persist only the appearance theme setting.
+            if not (category == 'appearance' and key == 'theme'):
+                return jsonify({'error': 'Insufficient permissions'}), 403
         
         if category not in SYSTEM_SETTINGS:
             return jsonify({'error': f'Category {category} not found'}), 404
@@ -545,8 +562,13 @@ def update_setting(category, key):
             return jsonify({'error': f'Setting {key} not found in category {category}'}), 404
         
         data = request.get_json()
-        if 'value' not in data:
+        if not data or 'value' not in data:
             return jsonify({'error': 'Value not provided'}), 400
+
+        if not is_admin and category == 'appearance' and key == 'theme':
+            allowed_themes = {'MediTrust', 'Clinic', 'MediLab-1.0.0', 'MediNest'}
+            if str(data['value']) not in allowed_themes:
+                return jsonify({'error': 'Invalid theme value'}), 400
         
         # Update setting
         SYSTEM_SETTINGS[category][key] = data['value']

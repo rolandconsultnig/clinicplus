@@ -25,7 +25,7 @@ export default function ClinicalFormsManager({ patientId, encounterId }) {
 
   const loadFormTypes = async () => {
     try {
-      const result = await apiService.request('/api/clinical-forms/types', 'GET');
+      const result = await apiService.request('/clinical-forms/types', 'GET');
       if (result.success) {
         setFormTypes(result.form_types);
       }
@@ -35,9 +35,14 @@ export default function ClinicalFormsManager({ patientId, encounterId }) {
   };
 
   const loadPatientForms = async () => {
+    if (!patientId) {
+      setForms([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const result = await apiService.request(`/api/clinical-forms/patient/${patientId}`, 'GET');
+      const result = await apiService.request(`/clinical-forms/patient/${patientId}`, 'GET');
       if (result.success) {
         setForms(result.forms || []);
       }
@@ -49,8 +54,9 @@ export default function ClinicalFormsManager({ patientId, encounterId }) {
   };
 
   const createForm = async (formType) => {
+    if (!patientId) return;
     try {
-      const result = await apiService.request(`/api/clinical-forms/${formType}/${patientId}`, 'POST', {
+      const result = await apiService.request(`/clinical-forms/${formType}/${patientId}`, 'POST', {
         encounter_id: encounterId,
         form_data: {}
       });

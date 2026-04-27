@@ -7,9 +7,10 @@ from src.models.user import db
 from src.models.clinical import ClinicalEncounter
 from src.models.patient import Patient, MedicalHistory, Medication, Allergy
 from src.models.clinical import LabResult
-from datetime import datetime
+from datetime import datetime, date
 import json
 import re
+import base64
 
 ai_consultation_bp = Blueprint('ai_consultation', __name__)
 
@@ -23,32 +24,30 @@ def transcribe_audio():
         audio_data = data.get('audio_data')  # Base64 encoded audio
         encounter_id = data.get('encounter_id')
         
-        # Speech-to-text processing
-        # If audio_data is provided, process it; otherwise use text input
-        if audio_data:
-            # In production, integrate with speech-to-text service:
-            # - Google Speech-to-Text API
-            # - AWS Transcribe
-            # - Azure Speech Services
-            # For now, extract text if it's a base64 string or use provided text
-            if isinstance(audio_data, str) and len(audio_data) > 100:
-                # Simulate transcription from audio (in production, use actual STT service)
-                transcription_text = data.get('transcription_text', 
-                    'Patient presents with chief complaint. History obtained.')
+        transcription_text = (data.get('transcription_text') or '').strip()
+        processing_method = 'direct_text'
+        if not transcription_text and audio_data:
+            processing_method = 'audio_payload'
+            if isinstance(audio_data, str):
+                payload = audio_data.split(',')[-1] if ',' in audio_data else audio_data
+                try:
+                    base64.b64decode(payload, validate=True)
+                except Exception:
+                    return jsonify({'error': 'Invalid audio_data encoding'}), 400
             else:
-                transcription_text = 'Audio transcription would be processed here.'
-        else:
-            # Use provided text directly
-            transcription_text = data.get('transcription_text', 
-                'Patient presents with chief complaint of headache for 3 days. No fever. No visual changes.')
+                return jsonify({'error': 'audio_data must be base64 string'}), 400
+            transcription_text = (data.get('fallback_text') or '').strip()
+
+        if not transcription_text:
+            return jsonify({'error': 'Provide transcription_text or fallback_text'}), 400
         
         # Process transcription with confidence scoring
         transcription = {
             'text': transcription_text,
-            'confidence': 0.95 if audio_data else 1.0,  # Higher confidence for direct text input
+            'confidence': 0.95 if processing_method == 'audio_payload' else 1.0,
             'segments': _segment_transcription(transcription_text),
             'language': data.get('language', 'en-US'),
-            'processing_method': 'direct_text' if not audio_data else 'audio_processing'
+            'processing_method': processing_method
         }
         
         return jsonify({
@@ -70,18 +69,18 @@ def generate_documentation():
         encounter_id = data.get('encounter_id')
         specialty = data.get('specialty', 'general')
         
-        # AI-powered documentation generation using NLP extraction
-        # In production, integrate with:
-        # - OpenAI GPT models
-        # - Google Cloud Healthcare API
-        # - AWS Comprehend Medical
-        # Currently using rule-based NLP extraction with pattern matching
+        if isinstance(transcription, dict):
+            transcription_text = transcription.get('text', '')
+        else:
+            transcription_text = str(transcription or '')
+        if not transcription_text.strip():
+            return jsonify({'error': 'transcription text is required'}), 400
         
         documentation = {
-            'chief_complaint': extract_chief_complaint(transcription),
-            'history_present_illness': extract_hpi(transcription),
-            'assessment': generate_assessment(transcription, specialty),
-            'plan': generate_plan(transcription, specialty)
+            'chief_complaint': extract_chief_complaint(transcription_text),
+            'history_present_illness': extract_hpi(transcription_text),
+            'assessment': generate_assessment(transcription_text, specialty),
+            'plan': generate_plan(transcription_text, specialty)
         }
         
         # Update encounter if provided
@@ -143,7 +142,7 @@ def generate_patient_summary():
         
         # Get allergies
         allergies = Allergy.query.filter_by(patient_id=patient_id).all()
-        allergies_list = [a.allergen_name for a in allergies]
+        allergies_list = [a.allergen for a in allergies if a.allergen]
         
         # Build comprehensive summary
         key_points = []
@@ -163,8 +162,10 @@ def generate_patient_summary():
         # Calculate age
         age = None
         if patient.date_of_birth:
-            from dateutil.relativedelta import relativedelta
-            age = relativedelta(datetime.now().date(), patient.date_of_birth).years
+            today = date.today()
+            age = today.year - patient.date_of_birth.year - (
+                (today.month, today.day) < (patient.date_of_birth.month, patient.date_of_birth.day)
+            )
         
         summary = {
             'patient_id': patient_id,

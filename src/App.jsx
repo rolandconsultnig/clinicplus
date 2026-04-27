@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense, lazy } from 'react'
 import { Routes, Route, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
@@ -52,13 +52,12 @@ import {
 } from 'lucide-react'
 import { apiService } from './services/apiService.js'
 import PatientDataManager from './components/PatientDataManager.jsx'
-import { PhysicianDashboard, NurseDashboard, PharmacistDashboard } from './components/ProviderDashboards.jsx'
+import { PhysicianDashboard, NurseDashboard, PharmacistDashboard, RadiographerDashboard, OTManagerDashboard } from './components/ProviderDashboards.jsx'
 import SchedulingCalendar from './components/SchedulingCalendar.jsx'
 import BillingDashboard from './components/BillingDashboard.jsx'
 import PrescriptionManager from './components/PrescriptionManager.jsx'
 import PharmacySearch from './components/PharmacySearch.jsx'
 import InsurancePlans from './components/InsurancePlans.jsx'
-import RPMMonitor from './components/RPMMonitor.jsx'
 import RootAdminDashboard from './components/RootAdminDashboard.jsx'
 import TenantAdminDashboard from './components/TenantAdminDashboard.jsx'
 import OrganizationManagement from './components/OrganizationManagement.jsx'
@@ -89,17 +88,19 @@ import ReceptionistDashboard from './components/ReceptionistDashboard.jsx'
 import DoctorConsultationPage from './components/DoctorConsultationPage.jsx'
 import AIConsultation from './components/AIConsultation.jsx'
 import ClinicalDecisionSupport from './components/ClinicalDecisionSupport.jsx'
-import FHIRIntegration from './components/FHIRIntegration.jsx'
 import HL7LabIntegration from './components/HL7LabIntegration.jsx'
 import DataImportExport from './components/DataImportExport.jsx'
 import EmergencyModule from './components/EmergencyModule.jsx'
 import OPDQueueManagement from './components/OPDQueueManagement.jsx'
 import ProfessionalCredentialing from './components/ProfessionalCredentialing.jsx'
 import PaymentProcessing from './components/PaymentProcessing.jsx'
-import ProviderWorkflows from './components/ProviderWorkflows.jsx'
 import HealthDataManagement from './components/HealthDataManagement.jsx'
-import LaboratoryModule from './components/LaboratoryModule.jsx'
-import PharmacyInventoryModule from './components/PharmacyInventoryModule.jsx'
+import PharmacyPOS from './components/PharmacyPOS.jsx'
+import PharmacyReporting from './components/PharmacyReporting.jsx'
+import PharmacyPatientManagement from './components/PharmacyPatientManagement.jsx'
+import PharmacyBillingInsurance from './components/PharmacyBillingInsurance.jsx'
+import PharmacyDocumentCompliance from './components/PharmacyDocumentCompliance.jsx'
+import EmployeeSelfService from './components/EmployeeSelfService.jsx'
 import PatientSummaryDashboard from './components/PatientSummaryDashboard.jsx'
 import PatientFlowBoard from './components/PatientFlowBoard.jsx'
 import ClinicalFormsManager from './components/ClinicalFormsManager.jsx'
@@ -108,19 +109,39 @@ import BillingManagement from './components/BillingManagement.jsx'
 import LabManagement from './components/LabManagement.jsx'
 import EPrescribing from './components/EPrescribing.jsx'
 import ReportsViewer from './components/ReportsViewer.jsx'
-import AdminManagement from './components/AdminManagement.jsx'
-import MessagingManagement from './components/MessagingManagement.jsx'
-import SpecializedFeatures from './components/SpecializedFeatures.jsx'
-import AdvancedFeatures from './components/AdvancedFeatures.jsx'
-import UtilitiesView from './components/UtilitiesView.jsx'
 import ONCCertification from './components/ONCCertification.jsx'
 import GDPRCompliance from './components/GDPRCompliance.jsx'
 import SMARTonFHIR from './components/SMARTonFHIR.jsx'
 import HL7Integration from './components/HL7Integration.jsx'
 import { ThemeProvider } from './components/ThemeProvider.jsx'
 import { ToastProvider } from './components/ui/toast.jsx'
-import { AppProvider } from './contexts/AppContext.jsx'
+import { AppProvider, useAppContext } from './contexts/AppContext.jsx'
+import { PersonalizationProvider, usePersonalization } from './contexts/PersonalizationContext.jsx'
+import {
+  DigiClinicSidebarFooter,
+  DigiClinicSidebarFooterLight,
+  PersonalizeFloatingDock,
+} from './components/shell/DigiClinicPersonalize.jsx'
 import './App.css'
+import { BRANDING } from './config/branding.js'
+import { withStoredProfilePhoto } from './utils/profilePhoto.js'
+
+const FinanceDepartment = lazy(() => import('./components/FinanceDepartment.jsx'))
+const HumanResourceDepartment = lazy(() => import('./components/HumanResourceDepartment.jsx'))
+const AdminManagement = lazy(() => import('./components/AdminManagement.jsx'))
+const MessagingManagement = lazy(() => import('./components/MessagingManagement.jsx'))
+const SpecializedFeatures = lazy(() => import('./components/SpecializedFeatures.jsx'))
+const AdvancedFeatures = lazy(() => import('./components/AdvancedFeatures.jsx'))
+const UtilitiesView = lazy(() => import('./components/UtilitiesView.jsx'))
+const OperationTheatreManagement = lazy(() => import('./components/OperationTheatreManagement.jsx'))
+const NursingMARWorkflow = lazy(() => import('./components/NursingMARWorkflow.jsx'))
+const RadiologyWorkflow = lazy(() => import('./components/RadiologyWorkflow.jsx'))
+const RadiologyViewerHandoff = lazy(() => import('./components/RadiologyViewerHandoff.jsx'))
+const RPMMonitor = lazy(() => import('./components/RPMMonitor.jsx'))
+const FHIRIntegration = lazy(() => import('./components/FHIRIntegration.jsx'))
+const ProviderWorkflows = lazy(() => import('./components/ProviderWorkflows.jsx'))
+const LaboratoryModule = lazy(() => import('./components/LaboratoryModule.jsx'))
+const PharmacyInventoryModule = lazy(() => import('./components/PharmacyInventoryModule.jsx'))
 
 // Login Component
 function LoginForm({ onLogin }) {
@@ -135,7 +156,30 @@ function LoginForm({ onLogin }) {
     setLoading(true)
     setError('')
     
-    const result = await apiService.login(username, password)
+    // Extract facility subdomain from hostname for multi-tenant support
+    let facilityId = null
+    const hostname = window.location.hostname
+    const parts = hostname.split('.')
+    if (parts.length >= 2) {
+      const subdomain = parts[0]
+      if (subdomain && subdomain !== 'www' && subdomain !== 'localhost' && subdomain !== '127') {
+        // Try to get facility ID from subdomain
+        try {
+          const facilityResult = await apiService.request(`/facilities/by-subdomain/${subdomain}`, {
+            method: 'GET',
+            auth: false
+          })
+          if (facilityResult.success && facilityResult.facility) {
+            facilityId = facilityResult.facility.id
+          }
+        } catch (err) {
+          // Facility lookup failed, continue without facility_id
+          console.log('Could not determine facility from subdomain:', err)
+        }
+      }
+    }
+    
+    const result = await apiService.login(username, password, facilityId)
     
     if (result.success) {
       // Store user data
@@ -149,114 +193,131 @@ function LoginForm({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
-      </div>
-
-      <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-        <CardHeader className="text-center space-y-4 pb-6">
-          <div className="mx-auto mb-2 flex items-center justify-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 transform transition-transform hover:scale-105">
-              <Heart className="w-10 h-10 text-white" />
+    <div className="min-h-screen bg-slate-100 lg:grid lg:grid-cols-[1.05fr_1fr]">
+      <section className="hidden lg:flex lg:flex-col lg:justify-between bg-slate-950 text-slate-100 p-12 border-r border-slate-800">
+        <div>
+          <div className="flex items-center gap-3">
+            <img src={BRANDING.logo} alt="" className="h-10 w-10 rounded-md bg-white p-1 object-contain" />
+            <div>
+              <p className="text-sm font-semibold tracking-wide uppercase text-teal-300">DigiClinic</p>
+              <p className="text-xs text-slate-400">Clinical workspace</p>
             </div>
           </div>
-          <div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Clinic+
-            </CardTitle>
-            <CardDescription className="text-base mt-2 text-gray-600">
-              Universal Patient-Owned Health Ecosystem
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium text-gray-700">
-                Username
-              </Label>
-              <Input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                required
-                className="h-11 transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                className="h-11 transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-in slide-in-from-top-2">
-                <AlertCircle className="w-4 h-4" />
-                {error}
-              </div>
-            )}
-            <Button 
-              type="submit" 
-              className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/30 transition-all transform hover:scale-[1.02] active:scale-[0.98]" 
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Signing in...
-                </span>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-center text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">
-              Demo Credentials
+          <div className="mt-14 max-w-md">
+            <h1 className="text-3xl font-semibold leading-tight text-slate-50">
+              Secure access for care delivery teams
+            </h1>
+            <p className="mt-4 text-sm leading-6 text-slate-300">
+              Use your assigned credentials to access patient operations, scheduling, pharmacy, and
+              cross-department workflows.
             </p>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <span className="text-gray-600">Patient:</span>
-                <code className="text-blue-600 font-mono font-medium">patient_demo / demo123</code>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <span className="text-gray-600">Provider:</span>
-                <code className="text-indigo-600 font-mono font-medium">provider_demo / demo123</code>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <span className="text-gray-600">Admin:</span>
-                <code className="text-purple-600 font-mono font-medium">admin_demo / demo123</code>
-              </div>
+          </div>
+          <div className="mt-10 space-y-3 max-w-md">
+            <div className="rounded-lg border border-slate-800 bg-slate-900/70 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Access model</p>
+              <p className="mt-1 text-sm text-slate-200">Role-based permissions and tenant isolation</p>
+            </div>
+            <div className="rounded-lg border border-slate-800 bg-slate-900/70 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Security</p>
+              <p className="mt-1 text-sm text-slate-200">Session control, audit trails, and JWT protection</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <p className="text-xs text-slate-500">DigiClinic platform environment</p>
+      </section>
+
+      <section className="flex items-center justify-center p-6 sm:p-10 lg:p-14">
+        <Card className="w-full max-w-md border border-slate-200 bg-white shadow-sm">
+          <CardHeader className="space-y-3 pb-4">
+            <div className="flex items-center gap-3">
+              <img src={BRANDING.logo} alt="" className="h-11 w-11 rounded-md border border-slate-200 bg-white p-1 object-contain" />
+              <div>
+                <CardTitle className="text-2xl font-semibold text-slate-900">Sign in</CardTitle>
+                <CardDescription className="text-sm text-slate-600">
+                  DigiClinic clinical workspace
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="username" className="text-sm font-medium text-slate-700">
+                  Username
+                </Label>
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter username"
+                  required
+                  className="h-11 border-slate-300 focus-visible:ring-teal-600/30 focus-visible:border-teal-700"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-sm font-medium text-slate-700">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  required
+                  className="h-11 border-slate-300 focus-visible:ring-teal-600/30 focus-visible:border-teal-700"
+                />
+              </div>
+              {error && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white"
+                disabled={loading}
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Signing in...
+                  </span>
+                ) : (
+                  'Sign in to DigiClinic'
+                )}
+              </Button>
+            </form>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Demo credentials</p>
+              <div className="space-y-1.5 text-xs text-slate-700">
+                <p><span className="font-medium text-slate-600">Admin:</span> <code className="font-mono">admin / admin123</code></p>
+                <p><span className="font-medium text-slate-600">Doctor:</span> <code className="font-mono">doctor / doctor123</code></p>
+                <p><span className="font-medium text-slate-600">Nurse:</span> <code className="font-mono">nurse / nurse123</code></p>
+                <p><span className="font-medium text-slate-600">Reception:</span> <code className="font-mono">receptionist / receptionist123</code></p>
+                <p><span className="font-medium text-slate-600">Radiology:</span> <code className="font-mono">radiographer / radiographer123</code></p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   )
 }
 
 // Navigation Component
 function Navigation({ user, onLogout }) {
+  const profilePhoto = user?.avatar_url || user?.photo_url
+
   return (
     <nav className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <img src="/logo.png" alt="Clinic+" className="w-8 h-8" />
+            <img src={BRANDING.logo} alt="Clinic+" className="w-8 h-8 object-contain" />
             <span className="text-xl font-bold text-gray-900">Clinic+</span>
           </div>
           <Badge variant="outline" className="text-xs">
@@ -267,6 +328,9 @@ function Navigation({ user, onLogout }) {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Avatar className="w-8 h-8">
+              {profilePhoto ? (
+                <AvatarImage src={profilePhoto} alt={user?.username || 'User'} />
+              ) : null}
               <AvatarFallback>
                 {user.username.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -283,7 +347,7 @@ function Navigation({ user, onLogout }) {
 }
 
 // Patient Management Component
-function PatientManagement() {
+function PatientManagement({ user, onAddPatient = () => {} }) {
   const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -306,20 +370,28 @@ function PatientManagement() {
     patient.universal_patient_id?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  // Patients can only see their own record and cannot add new patients
+  const isPatient = user?.user_type === 'patient' || user?.user_type === 'Patient'
+  const canCreatePatient = !isPatient
+
   return (
     <div className="p-6 space-y-6">
       {/* Enhanced Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent">
-            Patient Management
+            {isPatient ? 'My Patient Record' : 'Patient Management'}
           </h1>
-          <p className="text-gray-600 mt-2">Manage and search patient records</p>
+          <p className="text-gray-600 mt-2">
+            {isPatient ? 'View your patient record' : 'Manage and search patient records'}
+          </p>
         </div>
-        <Button className="shadow-lg">
-          <Plus className="w-4 h-4 mr-2" />
-          Add New Patient
-        </Button>
+        {canCreatePatient && (
+          <Button className="shadow-lg" type="button" onClick={onAddPatient}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Patient
+          </Button>
+        )}
       </div>
 
       {/* Enhanced Search Card */}
@@ -350,8 +422,8 @@ function PatientManagement() {
         <div className="flex items-center justify-center py-16">
           <div className="text-center space-y-4">
             <div className="relative">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
-              <Users className="w-6 h-6 text-blue-600 absolute inset-0 m-auto animate-pulse" />
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-200 border-t-teal-600 mx-auto"></div>
+              <Users className="w-6 h-6 text-teal-700 absolute inset-0 m-auto animate-pulse" />
             </div>
             <p className="text-gray-600 font-medium">Loading patients...</p>
           </div>
@@ -369,7 +441,7 @@ function PatientManagement() {
                   {searchTerm ? 'Try adjusting your search criteria' : 'Get started by adding a new patient'}
                 </p>
                 {!searchTerm && (
-                  <Button>
+                  <Button type="button" onClick={onAddPatient}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add First Patient
                   </Button>
@@ -388,8 +460,8 @@ function PatientManagement() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 flex-1">
                         <div className="relative">
-                          <Avatar className="w-14 h-14 ring-2 ring-blue-100 group-hover:ring-blue-300 transition-all">
-                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold text-lg">
+                          <Avatar className="w-14 h-14 ring-2 ring-teal-100 group-hover:ring-teal-300 transition-all">
+                            <AvatarFallback className="bg-gradient-to-br from-teal-500 to-teal-700 text-white font-semibold text-lg">
                               {patient.first_name?.charAt(0)}{patient.last_name?.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
@@ -397,7 +469,7 @@ function PatientManagement() {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-1">
-                            <h3 className="font-bold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
+                            <h3 className="font-bold text-lg text-gray-900 group-hover:text-teal-700 transition-colors">
                               {patient.first_name} {patient.last_name}
                             </h3>
                             <Badge 
@@ -410,7 +482,7 @@ function PatientManagement() {
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                             <span className="flex items-center gap-1">
                               <span className="font-medium">ID:</span>
-                              <code className="px-2 py-0.5 bg-gray-100 rounded text-blue-600 font-mono">
+                              <code className="px-2 py-0.5 bg-gray-100 rounded text-teal-700 font-mono">
                                 {patient.universal_patient_id}
                               </code>
                             </span>
@@ -439,10 +511,261 @@ function PatientManagement() {
   )
 }
 
+function SelectPatientRequired({ onOpenFinder }) {
+  return (
+    <div className="p-6">
+      <Card className="max-w-md mx-auto shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="w-5 h-5 text-teal-600" />
+            Select a patient
+          </CardTitle>
+          <CardDescription>
+            Use Patient Finder to choose who you are documenting or treating. Your selection stays active across clinical tools.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button type="button" onClick={onOpenFinder} className="w-full">
+            <Search className="w-4 h-4 mr-2" />
+            Open Patient Finder
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function ClinicalContextBar({ selectedPatient, currentEncounter, onChangePatient, onClear }) {
+  if (!selectedPatient) return null
+  const name = [selectedPatient.first_name, selectedPatient.last_name].filter(Boolean).join(" ").trim() || "Selected patient"
+  const pid = selectedPatient.id ?? selectedPatient.patient_id
+  const encId = currentEncounter?.id ?? currentEncounter?.encounter_id
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-teal-200/80 bg-teal-50/90 px-4 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-3 text-slate-800">
+        <span className="font-semibold text-teal-900">Active patient</span>
+        <span>{name}</span>
+        {pid != null && <span className="text-gray-500 tabular-nums">ID: {pid}</span>}
+        {encId != null && (
+          <Badge variant="outline" className="text-xs">
+            Encounter #{encId}
+          </Badge>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={onChangePatient}>
+          Change
+        </Button>
+        <Button type="button" variant="ghost" size="sm" className="text-red-700 hover:text-red-800" onClick={onClear}>
+          Clear
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // Main App Component
 function App() {
   const [user, setUser] = useState(null)
-  const [currentView, setCurrentView] = useState('dashboard')
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  useEffect(() => {
+    const restoreUserFromStorage = () => {
+      const raw = localStorage.getItem('auth_user')
+      if (!raw) return false
+      try {
+        const u = withStoredProfilePhoto(JSON.parse(raw))
+        setUser(u)
+        apiService.setUser(u)
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    const checkAuth = async () => {
+      const token = localStorage.getItem('auth_token')
+      const storedUser = localStorage.getItem('auth_user')
+
+      // Keep apiService in sync with localStorage (singleton may have been created before storage was ready)
+      if (token) {
+        apiService.setToken(token)
+      }
+
+      if (token && storedUser) {
+        const result = await apiService.getProfile()
+        if (result.success) {
+          setUser(withStoredProfilePhoto(result.user))
+        } else if (result.status === 401) {
+          apiService.logout()
+        } else {
+          // Network errors, 403, timeouts, or profile bugs: do not wipe a valid session on refresh
+          if (!restoreUserFromStorage()) {
+            apiService.logout()
+          }
+        }
+      } else if (token && !storedUser) {
+        const result = await apiService.getProfile()
+        if (result.success) {
+          setUser(withStoredProfilePhoto(result.user))
+        } else if (result.status === 401) {
+          apiService.logout()
+        }
+      }
+      setCheckingAuth(false)
+    }
+
+    checkAuth()
+  }, [])
+
+  const handleLogin = (userData) => {
+    setUser(withStoredProfilePhoto(userData))
+  }
+
+  const handleUserProfileUpdate = (updatedUser) => {
+    if (!updatedUser) return
+    setUser(updatedUser)
+    apiService.setUser(updatedUser)
+  }
+
+  const handleLogout = () => {
+    apiService.logout()
+    setUser(null)
+  }
+
+  // Show loading while checking authentication
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-teal-50/30 to-slate-100">
+        <div className="text-center space-y-4">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-teal-100 border-t-teal-600 mx-auto" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Heart className="w-6 h-6 text-teal-600 animate-pulse" />
+            </div>
+          </div>
+          <div>
+            <p className="text-lg font-semibold text-slate-900 mb-1">Loading DigiClinic</p>
+            <p className="text-sm text-slate-600">Please wait...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // If no user, show landing page or login based on route
+  if (!user) {
+    return (
+      <ThemeProvider>
+        <Routes>
+          <Route path="/login" element={<LoginForm onLogin={handleLogin} />} />
+          <Route path="/*" element={<DynamicLanding />} />
+        </Routes>
+      </ThemeProvider>
+    )
+  }
+
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <AppProvider user={user}>
+          <PersonalizationProvider user={user}>
+            <AuthenticatedApp
+              key={user?.id ?? user?.username ?? 'user'}
+              user={user}
+              onLogin={handleLogin}
+              onUserUpdate={handleUserProfileUpdate}
+              onLogout={handleLogout}
+            />
+          </PersonalizationProvider>
+        </AppProvider>
+      </ToastProvider>
+    </ThemeProvider>
+  )
+}
+
+/** Sidebar heading: portal = role/facility features, not appearance settings */
+function getPortalNavHeading(user, isPatientPortalUser) {
+  if (user?.facility?.facility_type === 'pharmacy') {
+    return {
+      kicker: 'Portal features',
+      title: 'Pharmacy',
+      hint: 'Inventory, prescriptions, POS & patients',
+    }
+  }
+  if (isPatientPortalUser) {
+    return {
+      kicker: 'Portal features',
+      title: 'Patient',
+      hint: 'Appointments, records & messages',
+    }
+  }
+  const t = (user?.user_type || '').toLowerCase().replace(/\s+/g, '_')
+  const rows = {
+    root_admin: ['Administration', 'Cross-tenant & system control'],
+    admin: ['Administration', 'Users, facilities & security'],
+    system_administrator: ['Administration', 'Users, facilities & security'],
+    receptionist: ['Front desk', 'Scheduling, queue & registration'],
+    physician: ['Clinical', 'Encounters, documentation & orders'],
+    doctor: ['Clinical', 'Encounters, documentation & orders'],
+    provider: ['Clinical', 'Encounters, documentation & orders'],
+    nurse: ['Nursing', 'Care tasks, MAR & flow'],
+    pharmacist: ['Pharmacy', 'Verification, dispensing & inventory'],
+    radiographer: ['Imaging', 'Studies & workflow'],
+    ot_manager: ['Theatre', 'Cases & scheduling'],
+    billing: ['Revenue', 'Claims, ERA & tracking'],
+    finance: ['Finance', 'Ledger, AR/AP & budgets'],
+    accountant: ['Finance', 'Ledger, AR/AP & budgets'],
+    hr: ['Human resources', 'Staff, leave & payroll'],
+    human_resource: ['Human resources', 'Staff, leave & payroll'],
+    lab: ['Laboratory', 'Orders, results & QC'],
+    lab_technologist: ['Laboratory', 'Orders, results & QC'],
+    lab_technician: ['Laboratory', 'Orders, results & QC'],
+    pathologist: ['Laboratory', 'Orders, results & QC'],
+  }
+  const row = rows[t]
+  if (row) {
+    return { kicker: 'Portal features', title: row[0], hint: row[1] }
+  }
+  return {
+    kicker: 'Portal features',
+    title: 'Clinical workspace',
+    hint: 'Tools for your assigned role',
+  }
+}
+
+function initialWorkspaceView(user) {
+  const t = (user?.user_type || '').toLowerCase()
+  if (t === 'patient') return 'patient-dashboard'
+  if (t === 'receptionist') return 'receptionist'
+  if (t === 'radiographer' || t === 'radiologist') return 'radiology-workflow'
+  return 'dashboard'
+}
+
+// Logged-in shell (under AppProvider — can use patient / encounter context)
+function AuthenticatedApp({ user, onLogin, onUserUpdate, onLogout }) {
+  const [currentView, setCurrentView] = useState(() => initialWorkspaceView(user))
+  const normalizedUserType = (user?.user_type || '').toLowerCase()
+  const normalizedUserTypeKey = normalizedUserType.replace(/\s+/g, '_')
+  const isEssEligible =
+    !!user &&
+    ![
+      'patient',
+      'admin',
+      'root_admin',
+      'system_administrator',
+      'finance',
+      'accountant',
+      'hr',
+      'human_resource',
+    ].includes(normalizedUserTypeKey)
+  const canAccessLabOperations = [
+    'admin',
+    'system administrator',
+    'lab',
+    'lab_technologist',
+    'lab technician',
+    'pathologist'
+  ].includes(normalizedUserType)
 
   // Helper function to handle sidebar navigation
   const handleNavClick = (view) => {
@@ -456,61 +779,85 @@ function App() {
   // Helper function for consistent sidebar button styling
   const getSidebarButtonClass = (view) => {
     const isActive = currentView === view;
-    return `w-full justify-start h-10 transition-all duration-200 ${
-      isActive 
-        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 font-medium' 
-        : 'hover:bg-gray-50 hover:text-gray-900 text-gray-700'
+    return `w-full justify-start h-10 transition-colors duration-200 ${
+      isActive
+        ? 'bg-teal-600 text-white shadow-sm border-l-4 border-teal-300 rounded-l-none font-medium'
+        : 'text-slate-300 hover:bg-white/10 hover:text-white'
     }`;
   };
-  const [checkingAuth, setCheckingAuth] = useState(true)
+  const { selectedPatient, selectPatient, currentEncounter, setCurrentEncounter } = useAppContext()
+  const {
+    setAppShellRef,
+    mainSurfaceClass,
+    mainCanvasStyle,
+    sidebarWidthClass,
+    sidebarStyle,
+    backgroundId,
+  } = usePersonalization()
 
-  // Check for existing authentication on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('auth_token')
-      const storedUser = localStorage.getItem('auth_user')
-      
-      if (token && storedUser) {
-        try {
-          // Verify token is still valid by getting profile
-          const result = await apiService.getProfile()
-          if (result.success) {
-            setUser(result.user)
-          } else {
-            // Token invalid, clear storage silently
-            apiService.logout()
-          }
-        } catch (error) {
-          // Token expired or invalid, clear storage silently
-          // Don't log errors for expired tokens - this is expected behavior
-          if (error.status !== 401) {
-            console.error('Auth check error:', error)
-          }
-          apiService.logout()
-        }
-      }
-      setCheckingAuth(false)
+  const navVariant = (view) =>
+    currentView === view
+      ? 'sidebarActive'
+      : sidebarStyle === 'light'
+        ? 'sidebarGhostLight'
+        : 'sidebarGhost'
+
+  const isPatientPortalUser =
+    user?.user_type === 'patient' || user?.user_type === 'Patient'
+  const selectedPatientRecordId = selectedPatient?.id ?? selectedPatient?.patient_id ?? null
+  const clinicalPatientId = isPatientPortalUser
+    ? user?.patient_id
+    : selectedPatientRecordId
+  const clinicalEncounterId = isPatientPortalUser
+    ? user?.encounter_id
+    : (currentEncounter?.id ?? currentEncounter?.encounter_id ?? null)
+
+  const openPatientFinder = () => setCurrentView('patient-finder')
+  const authToken = (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null) || null
+
+  const portalNav = getPortalNavHeading(user, isPatientPortalUser)
+
+  const asideSectionBorder = sidebarStyle === 'light' ? 'border-slate-200' : 'border-slate-800'
+  const searchInputClass =
+    sidebarStyle === 'light'
+      ? 'pl-9 h-9 text-xs bg-slate-100 border-slate-200 text-slate-900 placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-[color:var(--dc-ring,rgba(20,184,166,0.35))]'
+      : 'pl-9 h-9 text-xs bg-slate-800/80 border-slate-700 text-slate-100 placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-[color:var(--dc-ring,rgba(20,184,166,0.35))]'
+
+  const requireStaffPatient = (content) => {
+    if (isPatientPortalUser) return content
+    if (!clinicalPatientId) {
+      return <SelectPatientRequired onOpenFinder={openPatientFinder} />
     }
-    
-    checkAuth()
-  }, [])
-
-  const handleLogin = (userData) => {
-    setUser(userData)
-  }
-
-  const handleLogout = () => {
-    apiService.logout()
-    setUser(null)
-    setCurrentView('dashboard')
+    return content
   }
 
   const renderContent = () => {
     switch (currentView) {
       case 'patients':
-        return <PatientManagement />
+        // Patients should not access patient management - redirect to their own portal
+        if (user?.user_type === 'patient' || user?.user_type === 'Patient') {
+          return <RoleBasedPortal user={user} onNavigate={setCurrentView} />
+        }
+        return (
+          <PatientManagement
+            user={user}
+            onAddPatient={() => {
+              try {
+                sessionStorage.setItem('digiclinic_open_add_patient', '1')
+              } catch (_) {
+                /* ignore */
+              }
+              setCurrentView('patient-data')
+            }}
+          />
+        )
       case 'patient-data':
-        return <PatientDataManager />
+        // Patients can only access their own data
+        return <PatientDataManager 
+          userType={user?.user_type} 
+          token={authToken}
+          currentUser={user}
+        />
       case 'scheduling':
         return <SchedulingCalendar facilityId={user.facility_id} providerId={user.provider_id} />
       case 'billing':
@@ -519,19 +866,38 @@ function App() {
         if (user.user_type === 'patient') {
           return <PatientPrescriptionView patientId={user.patient_id} />
         }
-        return <PrescriptionManager 
-          patientId={user.patient_id} 
+        return requireStaffPatient(
+          <PrescriptionManager 
+          patientId={clinicalPatientId} 
           providerId={user.provider_id} 
           facilityId={user.facility_id}
           userType={user.user_type}
         />
+        )
       case 'patient-search':
-        return <PatientSearch onSelectPatient={(patient) => {
-          if (patient) {
-            setCurrentView('patient-data');
-            // Could pass patient to PatientDataManager
-          }
-        }} showCreateButton={true} />
+        // Patients cannot search for other patients
+        if (user?.user_type === 'patient' || user?.user_type === 'Patient') {
+          return <RoleBasedPortal user={user} onNavigate={setCurrentView} />
+        }
+        return (
+          <PatientSearch
+            onSelectPatient={(patient) => {
+              selectPatient(patient)
+              if (patient) {
+                setCurrentView('patient-data')
+              }
+            }}
+            showCreateButton={user?.user_type !== 'patient' && user?.user_type !== 'Patient'}
+            onCreatePatient={() => {
+              try {
+                sessionStorage.setItem('digiclinic_open_add_patient', '1')
+              } catch (_) {
+                /* ignore */
+              }
+              setCurrentView('patient-data')
+            }}
+          />
+        )
       case 'new-encounter':
         return <NewEncounter 
           onEncounterCreated={(encounter) => {
@@ -547,7 +913,7 @@ function App() {
       case 'insurance':
         return <InsurancePlans />
       case 'rpm':
-        return <RPMMonitor patientId={user.patient_id} />
+        return requireStaffPatient(<RPMMonitor patientId={clinicalPatientId} />)
       case 'root-admin':
         return <RootAdminDashboard />
       case 'tenant-admin':
@@ -563,23 +929,23 @@ function App() {
       case 'system-settings':
         return <SystemSettings />
       case 'soap-notes':
-        return <SOAPNotes patientId={user.patient_id} encounterId={user.encounter_id} />
+        return requireStaffPatient(<SOAPNotes patientId={clinicalPatientId} encounterId={clinicalEncounterId} />)
       case 'physical-exam':
-        return <PhysicalExam patientId={user.patient_id} encounterId={user.encounter_id} />
+        return requireStaffPatient(<PhysicalExam patientId={clinicalPatientId} encounterId={clinicalEncounterId} />)
       case 'review-of-systems':
-        return <ReviewOfSystems patientId={user.patient_id} encounterId={user.encounter_id} />
+        return requireStaffPatient(<ReviewOfSystems patientId={clinicalPatientId} encounterId={clinicalEncounterId} />)
       case 'clinical-reminders':
-        return <ClinicalReminders patientId={user.patient_id} />
+        return requireStaffPatient(<ClinicalReminders patientId={clinicalPatientId} />)
       case 'documents':
-        return <DocumentManagement patientId={user.patient_id} />
+        return requireStaffPatient(<DocumentManagement patientId={clinicalPatientId} />)
       case 'messaging':
         return <Messaging />
       case 'billing-tracker':
         return <BillingTracker />
       case 'care-plans':
-        return <CarePlans patientId={user.patient_id} />
+        return requireStaffPatient(<CarePlans patientId={clinicalPatientId} />)
       case 'treatment-plans':
-        return <TreatmentPlans patientId={user.patient_id} />
+        return requireStaffPatient(<TreatmentPlans patientId={clinicalPatientId} />)
       case 'patient-portal':
         return <PatientPortal />
       case 'patient-dashboard':
@@ -603,42 +969,32 @@ function App() {
       case 'era':
         return <ERA />
       case 'ub04-forms':
-        return <UB04Forms patientId={user.patient_id} />
+        return requireStaffPatient(<UB04Forms patientId={clinicalPatientId} />)
       case 'provider-dashboard':
-        if (user.user_type === 'physician') return <PhysicianDashboard />
-        if (user.user_type === 'nurse') return <NurseDashboard />
-        if (user.user_type === 'pharmacist') return <PharmacistDashboard />
+        {
+          const providerType = (user?.user_type || '').toLowerCase()
+          if (providerType === 'physician') return <PhysicianDashboard token={authToken} currentUser={user} />
+          if (providerType === 'nurse') return <NurseDashboard token={authToken} currentUser={user} />
+          if (providerType === 'pharmacist') return <PharmacistDashboard token={authToken} currentUser={user} />
+          if (providerType === 'radiographer' || providerType === 'radiologist') return <RadiographerDashboard token={authToken} currentUser={user} />
+          if (providerType === 'ot_manager') return <OTManagerDashboard token={authToken} currentUser={user} />
+        }
         return <RoleBasedPortal user={user} />
       case 'profile':
-        return <UserProfile user={user} />
-      case 'patient-search':
-        return <PatientSearch onSelectPatient={(patient) => {
-          if (patient) {
-            setCurrentView('patient-data');
-          }
-        }} showCreateButton={true} />
-      case 'new-encounter':
-        return <NewEncounter 
-          onEncounterCreated={(encounter) => {
-            alert('Encounter created successfully!');
-            setCurrentView('dashboard');
-          }}
-          onCancel={() => setCurrentView('dashboard')}
-        />
-      case 'lab-orders':
-        return <LabOrders />
+        return <UserProfile user={user} onUserUpdate={onUserUpdate} />
       case 'receptionist':
         return <ReceptionistDashboard />
       case 'doctor-consultation':
-        return <DoctorConsultationPage patientId={user.patient_id} encounterId={user.encounter_id} />
+        return requireStaffPatient(<DoctorConsultationPage patientId={clinicalPatientId} encounterId={clinicalEncounterId} />)
       case 'ai-consultation':
-        return <AIConsultation patientId={user.patient_id} />
+        return requireStaffPatient(<AIConsultation patientId={clinicalPatientId} />)
       case 'cds':
-        return <ClinicalDecisionSupport patientId={user.patient_id} encounterId={user.encounter_id} />
+        return requireStaffPatient(<ClinicalDecisionSupport patientId={clinicalPatientId} encounterId={clinicalEncounterId} />)
       case 'fhir-integration':
         return <FHIRIntegration />
       case 'hl7-labs':
-        return <HL7LabIntegration patientId={user.patient_id} />
+        if (!canAccessLabOperations) return <RoleBasedPortal user={user} onNavigate={setCurrentView} />
+        return requireStaffPatient(<HL7LabIntegration patientId={clinicalPatientId} />)
       case 'data-import-export':
         return <DataImportExport />
       case 'emergency':
@@ -648,29 +1004,53 @@ function App() {
       case 'credentialing':
         return <ProfessionalCredentialing />
       case 'payments':
-        return <PaymentProcessing patientId={user.patient_id} />
+        return requireStaffPatient(<PaymentProcessing patientId={clinicalPatientId} />)
       case 'provider-workflows':
         return <ProviderWorkflows />
+      case 'ot-management':
+        return <OperationTheatreManagement />
+      case 'nursing-mar':
+        return <NursingMARWorkflow />
+      case 'radiology-workflow':
+        return <RadiologyWorkflow />
       case 'health-data':
-        return <HealthDataManagement patientId={user.patient_id} />
+        return requireStaffPatient(<HealthDataManagement patientId={clinicalPatientId} />)
       case 'laboratory':
+        if (!canAccessLabOperations) return <RoleBasedPortal user={user} onNavigate={setCurrentView} />
         return <LaboratoryModule />
       case 'pharmacy-inventory':
         return <PharmacyInventoryModule />
+      case 'pharmacy-pos':
+        return <PharmacyPOS />
+      case 'pharmacy-reporting':
+        return <PharmacyReporting />
+      case 'pharmacy-patient-management':
+        return <PharmacyPatientManagement />
+      case 'pharmacy-billing-insurance':
+        return <PharmacyBillingInsurance />
+      case 'pharmacy-document-compliance':
+        return <PharmacyDocumentCompliance />
       case 'patient-summary':
-        return <PatientSummaryDashboard patientId={user.patient_id || null} onEdit={(id) => setCurrentView('patient-data')} />
+        return requireStaffPatient(<PatientSummaryDashboard patientId={clinicalPatientId || null} onEdit={(id) => setCurrentView('patient-data')} />)
       case 'patient-flow-board':
         return <PatientFlowBoard facilityId={user.facility_id} providerId={user.provider_id} />
       case 'clinical-forms':
-        return <ClinicalFormsManager patientId={user.patient_id || null} encounterId={user.encounter_id || null} />
+        return requireStaffPatient(<ClinicalFormsManager patientId={clinicalPatientId || null} encounterId={clinicalEncounterId || null} />)
       case 'encounter-management':
-        return <EncounterManagement patientId={user.patient_id} encounterId={user.encounter_id} />
+        return requireStaffPatient(<EncounterManagement patientId={clinicalPatientId} encounterId={clinicalEncounterId} />)
       case 'billing-management':
         return <BillingManagement facilityId={user.facility_id} />
+      case 'finance-department':
+        return <FinanceDepartment />
+      case 'human-resource-department':
+        return <HumanResourceDepartment />
+      case 'employee-self-service':
+        return <EmployeeSelfService />
       case 'lab-management':
-        return <LabManagement patientId={user.patient_id} />
+        if (!canAccessLabOperations) return <RoleBasedPortal user={user} onNavigate={setCurrentView} />
+        return requireStaffPatient(<LabManagement patientId={clinicalPatientId} />)
       case 'eprescribing':
-        return <EPrescribing patientId={user.patient_id} />
+        return requireStaffPatient(<EPrescribing patientId={clinicalPatientId} />)
       case 'reports':
         return <ReportsViewer />
       case 'admin-management':
@@ -678,15 +1058,19 @@ function App() {
       case 'messaging-management':
         return <MessagingManagement />
       case 'document-management':
-        return <DocumentManagement patientId={user.patient_id} />
+        return requireStaffPatient(<DocumentManagement patientId={clinicalPatientId} />)
       case 'specialized-features':
         return <SpecializedFeatures />
       case 'advanced-features':
-        return <AdvancedFeatures patientId={user.patient_id} />
+        return requireStaffPatient(<AdvancedFeatures patientId={clinicalPatientId} />)
       case 'patient-finder':
-        return <PatientSearch onSelectPatient={(patient) => setCurrentView('patient-data')} showCreateButton={true} />
+        // Patients cannot search for other patients
+        if (user?.user_type === 'patient' || user?.user_type === 'Patient') {
+          return <RoleBasedPortal user={user} onNavigate={setCurrentView} />
+        }
+        return <PatientSearch onSelectPatient={(patient) => { selectPatient(patient); if (patient) setCurrentView('patient-data') }} showCreateButton={user?.user_type !== 'patient' && user?.user_type !== 'Patient'} />
       case 'utilities':
-        return <UtilitiesView patientId={user.patient_id} />
+        return requireStaffPatient(<UtilitiesView patientId={clinicalPatientId} />)
       case 'dashboard':
         return <RoleBasedPortal user={user} onNavigate={setCurrentView} />
       default:
@@ -694,133 +1078,356 @@ function App() {
     }
   }
 
-  // Show loading while checking authentication
-  if (checkingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
-        <div className="text-center space-y-4">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Heart className="w-6 h-6 text-blue-600 animate-pulse" />
-            </div>
-          </div>
-          <div>
-            <p className="text-lg font-semibold text-gray-900 mb-1">Loading Clinic+</p>
-            <p className="text-sm text-gray-600">Please wait...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // If no user, show landing page or login based on route
-  if (!user) {
-    return (
-      <ThemeProvider>
-        <Routes>
-          <Route path="/login" element={<LoginForm onLogin={handleLogin} />} />
-          <Route path="/*" element={<DynamicLanding />} />
-        </Routes>
-      </ThemeProvider>
-    )
-  }
-
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <AppProvider user={user}>
           <Routes>
-            <Route path="/login" element={<LoginForm onLogin={handleLogin} />} />
-            <Route path="/*" element={
-              <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/10">
-                {/* Enhanced Top Navigation Bar */}
-                <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 px-4 lg:px-6 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
-                      <Heart className="w-5 h-5 text-white" />
+            <Route path="/login" element={<LoginForm onLogin={onLogin} />} />
+            <Route
+              path="/viewer-handoff/:launchToken"
+              element={
+                <Suspense
+                  fallback={
+                    <div className="min-h-screen flex items-center justify-center">
+                      <div className="text-sm text-gray-600">Loading viewer handoff...</div>
                     </div>
-                    <div>
-                      <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                        Clinic+
-                      </span>
-                      <p className="text-xs text-gray-500 -mt-0.5">Health Ecosystem</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="text-sm font-medium text-gray-700">{user.username}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {user.user_type}
-                      </Badge>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleLogout}
-                      className="hover:bg-red-50 hover:text-red-600 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      <span className="hidden sm:inline">Logout</span>
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex">
-                  {/* Enhanced Sidebar */}
-                  <div className="w-64 bg-white/80 backdrop-blur-sm border-r border-gray-200/50 min-h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto z-40 shadow-sm">
-                    <div className="p-4 space-y-2">
-                      {/* Search in Sidebar */}
-                      <div className="mb-4 px-2">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <Input
-                            placeholder="Search menu..."
-                            className="pl-9 h-9 text-sm bg-gray-50 border-gray-200 focus:bg-white transition-colors"
-                          />
+                  }
+                >
+                  <RadiologyViewerHandoff />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/*"
+              element={
+                <div
+                  ref={setAppShellRef}
+                  className="digiclinic-app flex min-h-screen min-w-0 flex-col bg-slate-100"
+                >
+                  <header className="bg-white dc-header-accent-bar z-50 flex shrink-0 items-center justify-between px-4 py-3 shadow-sm lg:px-6">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={BRANDING.logo}
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 shrink-0 rounded-lg object-contain shadow-sm ring-1 ring-slate-200/90 bg-white"
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span
+                          className="text-xs font-semibold uppercase tracking-wide"
+                          style={{ color: 'var(--dc-accent, #0d9488)' }}
+                        >
+                          DigiClinic
+                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-slate-900 truncate">
+                            {user?.display_name || user?.full_name || user?.username || 'Clinician'}
+                          </span>
+                          <Badge variant="outline" className="text-xs border-teal-200 text-teal-800 bg-teal-50/80">
+                            {user?.user_type}
+                          </Badge>
                         </div>
                       </div>
-                      <nav className="space-y-1">
-                        {/* Dashboard - All Users */}
-                        <Button
-                          type="button"
-                          variant={currentView === 'dashboard' ? 'default' : 'ghost'}
-                          className={`w-full justify-start h-10 transition-all ${
-                            currentView === 'dashboard' 
-                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                              : 'hover:bg-gray-50 hover:text-gray-900'
-                          }`}
-                          onClick={handleNavClick('dashboard')}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-9 w-9 ring-1 ring-slate-200">
+                        {user?.avatar_url || user?.photo_url ? (
+                          <AvatarImage
+                            src={user?.avatar_url || user?.photo_url}
+                            alt={user?.display_name || user?.username || 'User'}
+                          />
+                        ) : null}
+                        <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-semibold">
+                          {(user?.display_name || user?.full_name || user?.username || 'U')
+                            .slice(0, 2)
+                            .toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="hidden md:flex items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                          <span>Online</span>
+                        </div>
+                        {user?.facility?.name && (
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3" />
+                            <span className="truncate max-w-[10rem]">{user.facility.name}</span>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onLogout}
+                        className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        <span className="hidden sm:inline">Logout</span>
+                      </Button>
+                    </div>
+                  </header>
+
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-row">
+                    <aside
+                      className={`digiclinic-sidebar shrink-0 min-h-[calc(100vh-3.25rem)] max-h-[calc(100vh-3.25rem)] sticky top-[3.25rem] flex flex-col border-r overflow-hidden ${sidebarWidthClass} ${
+                        sidebarStyle === 'light'
+                          ? 'bg-white border-slate-200 text-slate-800'
+                          : 'bg-slate-900 border-slate-800 text-slate-100'
+                      }`}
+                    >
+                      <div className={`px-4 pt-4 pb-3 border-b shrink-0 ${asideSectionBorder}`}>
+                        <p
+                          className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${sidebarStyle === 'light' ? 'text-slate-500' : 'text-slate-500'}`}
                         >
-                          <Activity className="w-4 h-4 mr-3" />
-                          <span className="font-medium">Dashboard</span>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={currentView === 'clinical-reminders' ? 'default' : 'ghost'}
-                          className={`w-full justify-start h-10 transition-all ${
-                            currentView === 'clinical-reminders' 
-                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                              : 'hover:bg-gray-50 hover:text-gray-900'
-                          }`}
-                          onClick={handleNavClick('clinical-reminders')}
+                          {portalNav.kicker}
+                        </p>
+                        <p
+                          className={`text-sm font-semibold truncate ${sidebarStyle === 'light' ? 'text-slate-900' : 'text-white'}`}
                         >
-                          <Bell className="w-4 h-4 mr-3" />
-                          <span className="font-medium">Clinical Reminders</span>
-                        </Button>
+                          {portalNav.title}
+                        </p>
+                        <p
+                          className={`text-xs mt-1 leading-snug ${sidebarStyle === 'light' ? 'text-slate-500' : 'text-slate-400'}`}
+                        >
+                          {portalNav.hint}
+                        </p>
+                      </div>
+                      <div className="flex flex-col flex-1 min-h-0 p-4">
+                        <div className="relative mb-2 shrink-0">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                          <Input placeholder="Search apps or pages..." className={searchInputClass} />
+                        </div>
+                        <nav className="flex-1 overflow-y-auto overflow-x-hidden space-y-1 text-sm min-h-0 pr-0.5">
+                        {/* Check if facility is pharmacy - show pharmacy-focused menu */}
+                        {user?.facility?.facility_type === 'pharmacy' ? (
+                          <>
+                            {/* Pharmacy Dashboard */}
+                            <Button
+                              type="button"
+                              variant={navVariant('dashboard')}
+                              className="w-full justify-start h-10"
+                              onClick={handleNavClick('dashboard')}
+                            >
+                              <Activity className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Dashboard</span>
+                            </Button>
+                            
+                            {/* Pharmacy Inventory */}
+                            <Button
+                              type="button"
+                              variant={navVariant('pharmacy-inventory')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('pharmacy-inventory')}
+                            >
+                              <Pill className="w-4 h-4 mr-2" />
+                              Pharmacy Inventory
+                            </Button>
+                            
+                            {/* Prescription Management */}
+                            <Button
+                              type="button"
+                              variant={navVariant('prescriptions')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('prescriptions')}
+                            >
+                              <Pill className="w-4 h-4 mr-2" />
+                              Prescription Management
+                            </Button>
+                            
+                            {/* Point of Sale */}
+                            <Button
+                              type="button"
+                              variant={navVariant('pharmacy-pos')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('pharmacy-pos')}
+                            >
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              Point of Sale
+                            </Button>
+                            
+                            {/* Patient Management */}
+                            <Button
+                              type="button"
+                              variant={navVariant('pharmacy-patient-management')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('pharmacy-patient-management')}
+                            >
+                              <User className="w-4 h-4 mr-2" />
+                              Patient Management
+                            </Button>
+                            
+                            {/* Billing & Insurance */}
+                            <Button
+                              type="button"
+                              variant={navVariant('pharmacy-billing-insurance')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('pharmacy-billing-insurance')}
+                            >
+                              <DollarSign className="w-4 h-4 mr-2" />
+                              Billing & Insurance
+                            </Button>
+                            
+                            {/* Reporting & Analytics */}
+                            <Button
+                              type="button"
+                              variant={navVariant('pharmacy-reporting')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('pharmacy-reporting')}
+                            >
+                              <Activity className="w-4 h-4 mr-2" />
+                              Reports & Analytics
+                            </Button>
+                            
+                            {/* Documents & Compliance */}
+                            <Button
+                              type="button"
+                              variant={navVariant('pharmacy-document-compliance')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('pharmacy-document-compliance')}
+                            >
+                              <Shield className="w-4 h-4 mr-2" />
+                              Documents & Compliance
+                            </Button>
+                            
+                            {/* Patient Search - for finding patients */}
+                            <Button
+                              type="button"
+                              variant={navVariant('patient-search')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('patient-search')}
+                            >
+                              <Search className="w-4 h-4 mr-2" />
+                              Find Patient
+                            </Button>
+                            
+                            {/* Billing - for pharmacy billing */}
+                            <Button
+                              type="button"
+                              variant={navVariant('billing')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('billing')}
+                            >
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              Billing
+                            </Button>
+                            
+                            {/* Payments */}
+                            <Button
+                              type="button"
+                              variant={navVariant('payments')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('payments')}
+                            >
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              Process Payment
+                            </Button>
+                            
+                            {/* Admin Menu - Limited for Pharmacy */}
+                            {(user.user_type === 'admin' || user.user_type === 'root_admin' || user.user_type === 'billing' || user.user_type === 'finance' || user.user_type === 'accountant' || user.user_type === 'hr' || user.user_type === 'human_resource') && (
+                              <>
+                                <div className="pt-4 border-t mt-4">
+                                  <Button
+                                    type="button"
+                                    variant={navVariant('user-management')}
+                                    className="w-full justify-start"
+                                    onClick={handleNavClick('user-management')}
+                                  >
+                                    <Users className="w-4 h-4 mr-2" />
+                                    Users
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant={navVariant('finance-department')}
+                                    className="w-full justify-start"
+                                    onClick={handleNavClick('finance-department')}
+                                  >
+                                    <DollarSign className="w-4 h-4 mr-2" />
+                                    Finance Department
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant={navVariant('human-resource-department')}
+                                    className="w-full justify-start"
+                                    onClick={handleNavClick('human-resource-department')}
+                                  >
+                                    <Users className="w-4 h-4 mr-2" />
+                                    Human Resource
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant={navVariant('system-settings')}
+                                    className="w-full justify-start"
+                                    onClick={handleNavClick('system-settings')}
+                                  >
+                                    <Settings className="w-4 h-4 mr-2" />
+                                    Settings
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                            
+                            {/* Common - Messages and Profile */}
+                            <div className="pt-4 border-t mt-4">
+                              <Button
+                                type="button"
+                                variant={navVariant('messaging')}
+                                className="w-full justify-start"
+                                onClick={handleNavClick('messaging')}
+                              >
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                                Messages
+                              </Button>
+                              {isEssEligible && (
+                                <Button
+                                  type="button"
+                                  variant={navVariant('employee-self-service')}
+                                  className="w-full justify-start"
+                                  onClick={handleNavClick('employee-self-service')}
+                                >
+                                  <UserCheck className="w-4 h-4 mr-2" />
+                                  Employee Self-Service
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant={navVariant('profile')}
+                                className="w-full justify-start"
+                                onClick={handleNavClick('profile')}
+                              >
+                                <User className="w-4 h-4 mr-2" />
+                                My Profile
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* Standard Menu for Non-Pharmacy Facilities */}
+                            {/* Dashboard - All Users */}
+                            <Button
+                              type="button"
+                              variant={navVariant('dashboard')}
+                              className="w-full justify-start h-10"
+                              onClick={handleNavClick('dashboard')}
+                            >
+                              <Activity className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Dashboard</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={navVariant('clinical-reminders')}
+                              className="w-full justify-start h-10"
+                              onClick={handleNavClick('clinical-reminders')}
+                            >
+                              <Bell className="w-4 h-4 mr-3" />
+                              <span className="font-medium">Clinical Reminders</span>
+                            </Button>
 
                         {/* Patient Menu */}
                         {(user.user_type === 'patient' || user.user_type === 'Patient') && (
                           <>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-dashboard' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-dashboard' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-dashboard')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-dashboard')}
                             >
                               <Activity className="w-4 h-4 mr-3" />
@@ -828,12 +1435,8 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-messages' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-messages' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-messages')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-messages')}
                             >
                               <MessageSquare className="w-4 h-4 mr-3" />
@@ -841,12 +1444,8 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-appointments' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-appointments' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-appointments')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-appointments')}
                             >
                               <Calendar className="w-4 h-4 mr-3" />
@@ -854,12 +1453,8 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-prescriptions' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-prescriptions' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-prescriptions')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-prescriptions')}
                             >
                               <Pill className="w-4 h-4 mr-3" />
@@ -867,12 +1462,8 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-records' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-records' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-records')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-records')}
                             >
                               <FileText className="w-4 h-4 mr-3" />
@@ -880,12 +1471,8 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-history' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-history' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-history')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-history')}
                             >
                               <History className="w-4 h-4 mr-3" />
@@ -893,12 +1480,8 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-grant-access' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-grant-access' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-grant-access')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-grant-access')}
                             >
                               <Share2 className="w-4 h-4 mr-3" />
@@ -906,12 +1489,8 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-billing' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-billing' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-billing')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-billing')}
                             >
                               <CreditCard className="w-4 h-4 mr-3" />
@@ -919,12 +1498,8 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-profile' ? 'default' : 'ghost'}
-                              className={`w-full justify-start h-10 transition-all ${
-                                currentView === 'patient-profile' 
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30' 
-                                  : 'hover:bg-gray-50 hover:text-gray-900'
-                              }`}
+                              variant={navVariant('patient-profile')}
+                              className="w-full justify-start h-10"
                               onClick={handleNavClick('patient-profile')}
                             >
                               <User className="w-4 h-4 mr-3" />
@@ -938,7 +1513,7 @@ function App() {
                           <>
                             <Button
                               type="button"
-                              variant={currentView === 'receptionist' ? 'default' : 'ghost'}
+                              variant={navVariant('receptionist')}
                               className="w-full justify-start"
                               onClick={handleNavClick('receptionist')}
                             >
@@ -947,7 +1522,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-search' ? 'default' : 'ghost'}
+                              variant={navVariant('patient-search')}
                               className="w-full justify-start"
                               onClick={handleNavClick('patient-search')}
                             >
@@ -956,7 +1531,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-flow-board' ? 'default' : 'ghost'}
+                              variant={navVariant('patient-flow-board')}
                               className="w-full justify-start"
                               onClick={handleNavClick('patient-flow-board')}
                             >
@@ -965,7 +1540,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-finder' ? 'default' : 'ghost'}
+                              variant={navVariant('patient-finder')}
                               className="w-full justify-start"
                               onClick={handleNavClick('patient-finder')}
                             >
@@ -974,7 +1549,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'scheduling' ? 'default' : 'ghost'}
+                              variant={navVariant('scheduling')}
                               className="w-full justify-start"
                               onClick={handleNavClick('scheduling')}
                             >
@@ -983,7 +1558,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'billing' ? 'default' : 'ghost'}
+                              variant={navVariant('billing')}
                               className="w-full justify-start"
                               onClick={handleNavClick('billing')}
                             >
@@ -992,7 +1567,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'billing-tracker' ? 'default' : 'ghost'}
+                              variant={navVariant('billing-tracker')}
                               className="w-full justify-start"
                               onClick={handleNavClick('billing-tracker')}
                             >
@@ -1001,7 +1576,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'era' ? 'default' : 'ghost'}
+                              variant={navVariant('era')}
                               className="w-full justify-start"
                               onClick={handleNavClick('era')}
                             >
@@ -1010,7 +1585,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'ub04-forms' ? 'default' : 'ghost'}
+                              variant={navVariant('ub04-forms')}
                               className="w-full justify-start"
                               onClick={handleNavClick('ub04-forms')}
                             >
@@ -1019,7 +1594,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'payments' ? 'default' : 'ghost'}
+                              variant={navVariant('payments')}
                               className="w-full justify-start"
                               onClick={handleNavClick('payments')}
                             >
@@ -1028,7 +1603,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'opd-queue' ? 'default' : 'ghost'}
+                              variant={navVariant('opd-queue')}
                               className="w-full justify-start"
                               onClick={handleNavClick('opd-queue')}
                             >
@@ -1037,7 +1612,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'emergency' ? 'default' : 'ghost'}
+                              variant={navVariant('emergency')}
                               className="w-full justify-start"
                               onClick={handleNavClick('emergency')}
                             >
@@ -1047,12 +1622,93 @@ function App() {
                           </>
                         )}
 
-                        {/* Physician Menu */}
-                        {(user.user_type === 'physician' || user.user_type === 'Physician' || user.user_type === 'provider') && (
+                        {/* OT Manager Menu */}
+                        {(user.user_type === 'ot_manager' || user.user_type === 'OT Manager') && (
                           <>
                             <Button
                               type="button"
-                              variant={currentView === 'doctor-consultation' ? 'default' : 'ghost'}
+                              variant={navVariant('ot-management')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('ot-management')}
+                            >
+                              <ClipboardList className="w-4 h-4 mr-2" />
+                              OT Management
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={navVariant('scheduling')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('scheduling')}
+                            >
+                              <Calendar className="w-4 h-4 mr-2" />
+                              OT Schedule
+                            </Button>
+                          </>
+                        )}
+
+                        {/* Nurse Menu */}
+                        {(user.user_type === 'nurse' || user.user_type === 'Nurse') && (
+                          <>
+                            <Button
+                              type="button"
+                              variant={navVariant('provider-dashboard')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('provider-dashboard')}
+                            >
+                              <Activity className="w-4 h-4 mr-2" />
+                              Nurse Dashboard
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={navVariant('nursing-mar')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('nursing-mar')}
+                            >
+                              <ClipboardCheck className="w-4 h-4 mr-2" />
+                              MAR Workflow
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={navVariant('patient-flow-board')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('patient-flow-board')}
+                            >
+                              <Users className="w-4 h-4 mr-2" />
+                              Patient Flow Board
+                            </Button>
+                          </>
+                        )}
+
+                        {/* Radiology Menu */}
+                        {(user.user_type === 'radiographer' || user.user_type === 'Radiographer' || user.user_type === 'radiologist' || user.user_type === 'Radiologist') && (
+                          <>
+                            <Button
+                              type="button"
+                              variant={navVariant('provider-dashboard')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('provider-dashboard')}
+                            >
+                              <Activity className="w-4 h-4 mr-2" />
+                              Radiology Dashboard
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={navVariant('radiology-workflow')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('radiology-workflow')}
+                            >
+                              <Microscope className="w-4 h-4 mr-2" />
+                              Radiology Workflow
+                            </Button>
+                          </>
+                        )}
+
+                        {/* Physician Menu */}
+                        {(user.user_type === 'physician' || user.user_type === 'Physician') && (
+                          <>
+                            <Button
+                              type="button"
+                              variant={navVariant('doctor-consultation')}
                               className="w-full justify-start"
                               onClick={handleNavClick('doctor-consultation')}
                             >
@@ -1061,7 +1717,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'treatment-plans' ? 'default' : 'ghost'}
+                              variant={navVariant('treatment-plans')}
                               className="w-full justify-start"
                               onClick={handleNavClick('treatment-plans')}
                             >
@@ -1070,7 +1726,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patients' ? 'default' : 'ghost'}
+                              variant={navVariant('patients')}
                               className="w-full justify-start"
                               onClick={handleNavClick('patients')}
                             >
@@ -1079,7 +1735,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'care-plans' ? 'default' : 'ghost'}
+                              variant={navVariant('care-plans')}
                               className="w-full justify-start"
                               onClick={handleNavClick('care-plans')}
                             >
@@ -1088,7 +1744,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'prescriptions' ? 'default' : 'ghost'}
+                              variant={navVariant('prescriptions')}
                               className="w-full justify-start"
                               onClick={handleNavClick('prescriptions')}
                             >
@@ -1097,7 +1753,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'eprescribing' ? 'default' : 'ghost'}
+                              variant={navVariant('eprescribing')}
                               className="w-full justify-start"
                               onClick={handleNavClick('eprescribing')}
                             >
@@ -1106,7 +1762,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'lab-orders' ? 'default' : 'ghost'}
+                              variant={navVariant('lab-orders')}
                               className="w-full justify-start"
                               onClick={handleNavClick('lab-orders')}
                             >
@@ -1115,25 +1771,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'laboratory' ? 'default' : 'ghost'}
-                              className="w-full justify-start"
-                              onClick={handleNavClick('laboratory')}
-                            >
-                              <Microscope className="w-4 h-4 mr-2" />
-                              Laboratory (LIS)
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={currentView === 'lab-management' ? 'default' : 'ghost'}
-                              className="w-full justify-start"
-                              onClick={handleNavClick('lab-management')}
-                            >
-                              <TestTube className="w-4 h-4 mr-2" />
-                              Lab Management
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={currentView === 'scheduling' ? 'default' : 'ghost'}
+                              variant={navVariant('scheduling')}
                               className="w-full justify-start"
                               onClick={handleNavClick('scheduling')}
                             >
@@ -1142,7 +1780,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'soap-notes' ? 'default' : 'ghost'}
+                              variant={navVariant('soap-notes')}
                               className="w-full justify-start"
                               onClick={handleNavClick('soap-notes')}
                             >
@@ -1151,7 +1789,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'physical-exam' ? 'default' : 'ghost'}
+                              variant={navVariant('physical-exam')}
                               className="w-full justify-start"
                               onClick={handleNavClick('physical-exam')}
                             >
@@ -1160,7 +1798,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'review-of-systems' ? 'default' : 'ghost'}
+                              variant={navVariant('review-of-systems')}
                               className="w-full justify-start"
                               onClick={handleNavClick('review-of-systems')}
                             >
@@ -1169,7 +1807,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'clinical-forms' ? 'default' : 'ghost'}
+                              variant={navVariant('clinical-forms')}
                               className="w-full justify-start"
                               onClick={handleNavClick('clinical-forms')}
                             >
@@ -1178,7 +1816,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'encounter-management' ? 'default' : 'ghost'}
+                              variant={navVariant('encounter-management')}
                               className="w-full justify-start"
                               onClick={handleNavClick('encounter-management')}
                             >
@@ -1187,7 +1825,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'patient-summary' ? 'default' : 'ghost'}
+                              variant={navVariant('patient-summary')}
                               className="w-full justify-start"
                               onClick={handleNavClick('patient-summary')}
                             >
@@ -1196,7 +1834,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'rpm' ? 'default' : 'ghost'}
+                              variant={navVariant('rpm')}
                               className="w-full justify-start"
                               onClick={handleNavClick('rpm')}
                             >
@@ -1205,7 +1843,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'ai-consultation' ? 'default' : 'ghost'}
+                              variant={navVariant('ai-consultation')}
                               className="w-full justify-start"
                               onClick={handleNavClick('ai-consultation')}
                             >
@@ -1214,7 +1852,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'cds' ? 'default' : 'ghost'}
+                              variant={navVariant('cds')}
                               className="w-full justify-start"
                               onClick={handleNavClick('cds')}
                             >
@@ -1223,16 +1861,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'hl7-labs' ? 'default' : 'ghost'}
-                              className="w-full justify-start"
-                              onClick={handleNavClick('hl7-labs')}
-                            >
-                              <TestTube className="w-4 h-4 mr-2" />
-                              HL7 Labs
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={currentView === 'health-data' ? 'default' : 'ghost'}
+                              variant={navVariant('health-data')}
                               className="w-full justify-start"
                               onClick={handleNavClick('health-data')}
                             >
@@ -1247,7 +1876,7 @@ function App() {
                           <>
                             <Button
                               type="button"
-                              variant={currentView === 'pharmacy-inventory' ? 'default' : 'ghost'}
+                              variant={navVariant('pharmacy-inventory')}
                               className="w-full justify-start"
                               onClick={handleNavClick('pharmacy-inventory')}
                             >
@@ -1256,7 +1885,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'prescriptions' ? 'default' : 'ghost'}
+                              variant={navVariant('prescriptions')}
                               className="w-full justify-start"
                               onClick={handleNavClick('prescriptions')}
                             >
@@ -1267,11 +1896,11 @@ function App() {
                         )}
 
                         {/* Admin Menu */}
-                        {(user.user_type === 'admin' || user.user_type === 'root_admin') && (
+                        {(user.user_type === 'admin' || user.user_type === 'root_admin' || user.user_type === 'billing' || user.user_type === 'finance' || user.user_type === 'accountant' || user.user_type === 'hr' || user.user_type === 'human_resource') && (
                           <>
                             <Button
                               type="button"
-                              variant={currentView === 'user-management' ? 'default' : 'ghost'}
+                              variant={navVariant('user-management')}
                               className="w-full justify-start"
                               onClick={handleNavClick('user-management')}
                             >
@@ -1280,7 +1909,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'facility-management' ? 'default' : 'ghost'}
+                              variant={navVariant('facility-management')}
                               className="w-full justify-start"
                               onClick={handleNavClick('facility-management')}
                             >
@@ -1289,7 +1918,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'system-settings' ? 'default' : 'ghost'}
+                              variant={navVariant('system-settings')}
                               className="w-full justify-start"
                               onClick={handleNavClick('system-settings')}
                             >
@@ -1298,7 +1927,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'fhir-integration' ? 'default' : 'ghost'}
+                              variant={navVariant('fhir-integration')}
                               className="w-full justify-start"
                               onClick={handleNavClick('fhir-integration')}
                             >
@@ -1307,7 +1936,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'data-import-export' ? 'default' : 'ghost'}
+                              variant={navVariant('data-import-export')}
                               className="w-full justify-start"
                               onClick={handleNavClick('data-import-export')}
                             >
@@ -1316,7 +1945,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'credentialing' ? 'default' : 'ghost'}
+                              variant={navVariant('credentialing')}
                               className="w-full justify-start"
                               onClick={handleNavClick('credentialing')}
                             >
@@ -1325,7 +1954,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'provider-workflows' ? 'default' : 'ghost'}
+                              variant={navVariant('provider-workflows')}
                               className="w-full justify-start"
                               onClick={handleNavClick('provider-workflows')}
                             >
@@ -1334,7 +1963,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'organizations' ? 'default' : 'ghost'}
+                              variant={navVariant('organizations')}
                               className="w-full justify-start"
                               onClick={handleNavClick('organizations')}
                             >
@@ -1343,7 +1972,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'billing-management' ? 'default' : 'ghost'}
+                              variant={navVariant('billing-management')}
                               className="w-full justify-start"
                               onClick={handleNavClick('billing-management')}
                             >
@@ -1352,7 +1981,25 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'security-audit' ? 'default' : 'ghost'}
+                              variant={navVariant('finance-department')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('finance-department')}
+                            >
+                              <DollarSign className="w-4 h-4 mr-2" />
+                              Finance Department
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={navVariant('human-resource-department')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('human-resource-department')}
+                            >
+                              <Users className="w-4 h-4 mr-2" />
+                              Human Resource
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={navVariant('security-audit')}
                               className="w-full justify-start"
                               onClick={handleNavClick('security-audit')}
                             >
@@ -1361,7 +2008,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'admin-management' ? 'default' : 'ghost'}
+                              variant={navVariant('admin-management')}
                               className="w-full justify-start"
                               onClick={handleNavClick('admin-management')}
                             >
@@ -1370,12 +2017,15 @@ function App() {
                             </Button>
                           </>
                         )}
+                          </>
+                        )}
 
-                        {/* Common - All Users */}
+                        {/* Common - All Users (Hidden for Pharmacy facilities) */}
+                        {user?.facility?.facility_type !== 'pharmacy' && (
                         <div className="pt-4 border-t mt-4">
                             <Button
                               type="button"
-                              variant={currentView === 'messaging' ? 'default' : 'ghost'}
+                              variant={navVariant('messaging')}
                               className="w-full justify-start"
                               onClick={handleNavClick('messaging')}
                             >
@@ -1384,7 +2034,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'messaging-management' ? 'default' : 'ghost'}
+                              variant={navVariant('messaging-management')}
                               className="w-full justify-start"
                               onClick={handleNavClick('messaging-management')}
                             >
@@ -1393,7 +2043,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'documents' ? 'default' : 'ghost'}
+                              variant={navVariant('documents')}
                               className="w-full justify-start"
                               onClick={handleNavClick('documents')}
                             >
@@ -1402,7 +2052,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'document-management' ? 'default' : 'ghost'}
+                              variant={navVariant('document-management')}
                               className="w-full justify-start"
                               onClick={handleNavClick('document-management')}
                             >
@@ -1411,7 +2061,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'specialized-features' ? 'default' : 'ghost'}
+                              variant={navVariant('specialized-features')}
                               className="w-full justify-start"
                               onClick={handleNavClick('specialized-features')}
                             >
@@ -1420,7 +2070,7 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'advanced-features' ? 'default' : 'ghost'}
+                              variant={navVariant('advanced-features')}
                               className="w-full justify-start"
                               onClick={handleNavClick('advanced-features')}
                             >
@@ -1429,16 +2079,27 @@ function App() {
                             </Button>
                             <Button
                               type="button"
-                              variant={currentView === 'utilities' ? 'default' : 'ghost'}
+                              variant={navVariant('utilities')}
                               className="w-full justify-start"
                               onClick={handleNavClick('utilities')}
                             >
                               <Settings className="w-4 h-4 mr-2" />
                               Utilities
                             </Button>
+                          {isEssEligible && (
+                            <Button
+                              type="button"
+                              variant={navVariant('employee-self-service')}
+                              className="w-full justify-start"
+                              onClick={handleNavClick('employee-self-service')}
+                            >
+                              <UserCheck className="w-4 h-4 mr-2" />
+                              Employee Self-Service
+                            </Button>
+                          )}
                           <Button
                             type="button"
-                            variant={currentView === 'profile' ? 'default' : 'ghost'}
+                            variant={navVariant('profile')}
                             className="w-full justify-start"
                             onClick={handleNavClick('profile')}
                           >
@@ -1446,24 +2107,51 @@ function App() {
                             My Profile
                           </Button>
                         </div>
+                        )}
                       </nav>
+                      {sidebarStyle === 'light' ? (
+                        <DigiClinicSidebarFooterLight onNavigate={setCurrentView} />
+                      ) : (
+                        <DigiClinicSidebarFooter onNavigate={setCurrentView} />
+                      )}
                     </div>
-                  </div>
+                  </aside>
 
-                  {/* Enhanced Main Content */}
-                  <div className="flex-1 overflow-auto bg-transparent">
-                    <div className="p-4 lg:p-6 animate-in fade-in duration-300">
-                      {renderContent()}
+                  <div
+                    className={`${mainSurfaceClass} min-h-0 flex-1 overflow-auto`}
+                    data-dc-bg={backgroundId}
+                    style={mainCanvasStyle}
+                  >
+                    <div className="p-4 lg:p-6 max-w-[1600px] mx-auto w-full">
+                      <ClinicalContextBar
+                        selectedPatient={!isPatientPortalUser ? selectedPatient : null}
+                        currentEncounter={currentEncounter}
+                        onChangePatient={openPatientFinder}
+                        onClear={() => {
+                          selectPatient(null)
+                          setCurrentEncounter(null)
+                        }}
+                      />
+
+                      <Suspense
+                        fallback={
+                          <div className="flex items-center justify-center py-12">
+                            <div className="text-sm text-gray-600">Loading module...</div>
+                          </div>
+                        }
+                      >
+                        {renderContent()}
+                      </Suspense>
                     </div>
                   </div>
                 </div>
-              </div>
+                <PersonalizeFloatingDock />
+                </div>
             } />
           </Routes>
-        </AppProvider>
-      </ToastProvider>
-    </ThemeProvider>
   )
 }
 
+
 export default App
+

@@ -21,9 +21,9 @@ export default function SpecializedFeatures() {
   const loadData = async () => {
     try {
       const [groupsResult, authResult, faxResult] = await Promise.all([
-        apiService.request('/api/specialized/therapy-groups', 'GET'),
-        apiService.request('/api/specialized/authorizations', 'GET'),
-        apiService.request('/api/specialized/fax/queue', 'GET')
+        apiService.request('/specialized/therapy-groups', 'GET'),
+        apiService.request('/specialized/authorizations', 'GET'),
+        apiService.request('/specialized/fax/queue', 'GET')
       ]);
 
       if (groupsResult.success) setTherapyGroups(groupsResult.groups || []);

@@ -1,468 +1,412 @@
-/**
- * OPD Queue Management Component
- * Outpatient Department queue and token system
- */
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card.jsx'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
-import { 
-  Users, 
-  Clock, 
-  CheckCircle, 
-  UserPlus,
-  Bell,
-  Monitor,
-  Printer,
-  RefreshCw,
-  ArrowRight,
-  XCircle
-} from 'lucide-react'
-import apiService from '../services/apiService'
+import { Users, Clock, CheckCircle, UserPlus, RefreshCw, ClipboardCheck } from 'lucide-react'
+import { apiService } from '../services/apiService'
+
+const STATUS_LABELS = {
+  booked: 'Booked',
+  arrived: 'Arrived',
+  registered: 'Registered',
+  triaged: 'Triaged',
+  in_queue: 'In Queue',
+  in_consultation: 'In Consultation',
+  investigations_ordered: 'Investigations Ordered',
+  investigations_completed: 'Investigations Completed',
+  review_completed: 'Review Completed',
+  pharmacy_completed: 'Pharmacy Completed',
+  billing_completed: 'Billing Completed',
+  discharged: 'Discharged'
+}
+
+const STATUS_COLORS = {
+  booked: 'bg-teal-100 text-teal-800',
+  arrived: 'bg-cyan-100 text-cyan-800',
+  registered: 'bg-yellow-100 text-yellow-800',
+  triaged: 'bg-orange-100 text-orange-800',
+  in_queue: 'bg-amber-100 text-amber-800',
+  in_consultation: 'bg-teal-100 text-teal-900',
+  investigations_ordered: 'bg-teal-100 text-teal-900',
+  investigations_completed: 'bg-violet-100 text-violet-800',
+  review_completed: 'bg-teal-50 text-rose-800',
+  pharmacy_completed: 'bg-emerald-100 text-emerald-800',
+  billing_completed: 'bg-green-100 text-green-800',
+  discharged: 'bg-gray-100 text-gray-800'
+}
+
+const WORKFLOW_SEQUENCE = [
+  { key: 'booked', label: 'Book' },
+  { key: 'arrived', label: 'Arrival' },
+  { key: 'registered', label: 'Verify' },
+  { key: 'triaged', label: 'Triage' },
+  { key: 'in_queue', label: 'Queue' },
+  { key: 'in_consultation', label: 'Consult' },
+  { key: 'investigations_ordered', label: 'Investigations' },
+  { key: 'investigations_completed', label: 'Results' },
+  { key: 'review_completed', label: 'Review' },
+  { key: 'pharmacy_completed', label: 'Pharmacy' },
+  { key: 'billing_completed', label: 'Billing' },
+  { key: 'discharged', label: 'Discharge' }
+]
 
 export default function OPDQueueManagement() {
+  const [visits, setVisits] = useState([])
   const [queue, setQueue] = useState([])
-  const [currentToken, setCurrentToken] = useState(null)
+  const [stats, setStats] = useState({ waiting: 0, inProgress: 0, completed: 0, avgWaitTime: 0 })
   const [departments, setDepartments] = useState([])
-  const [selectedDepartment, setSelectedDepartment] = useState('general')
-  const [stats, setStats] = useState({
-    waiting: 0,
-    inProgress: 0,
-    completed: 0,
-    avgWaitTime: 0
-  })
+  const [selectedDepartment, setSelectedDepartment] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    loadQueueData()
-    const interval = setInterval(loadQueueData, 10000) // Refresh every 10 seconds
-    return () => clearInterval(interval)
-  }, [selectedDepartment])
-
-  const loadQueueData = async () => {
+  const loadData = async () => {
+    setLoading(true)
     try {
-      const [queueRes, statsRes, deptRes] = await Promise.all([
-        apiService.request(`/opd/queue?department=${selectedDepartment}`),
-        apiService.request(`/opd/stats?department=${selectedDepartment}`),
+      const [visitsRes, queueRes, statsRes, deptRes] = await Promise.all([
+        apiService.request('/opd/visits'),
+        apiService.request('/opd/queue?status=waiting'),
+        apiService.request('/opd/stats'),
         apiService.request('/opd/departments')
       ])
-      
+      setVisits(visitsRes.visits || [])
       setQueue(queueRes.queue || [])
-      setStats(statsRes.stats || stats)
+      setStats(statsRes.stats || { waiting: 0, inProgress: 0, completed: 0, avgWaitTime: 0 })
       setDepartments(deptRes.departments || [])
-      setCurrentToken(queueRes.current_token || null)
-    } catch (error) {
-      console.error('Error loading queue data:', error)
-    }
-  }
-
-  const generateToken = async (patientData) => {
-    try {
-      const response = await apiService.request('/opd/generate-token', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...patientData,
-          department: selectedDepartment
-        })
-      })
-      
-      alert(`Token generated: ${response.token_number}`)
-      loadQueueData()
-      
-      // Print token
-      if (response.token_number) {
-        printToken(response)
+      if (!selectedDepartment && (deptRes.departments || []).length > 0) {
+        setSelectedDepartment(deptRes.departments[0])
       }
     } catch (error) {
-      alert('Failed to generate token: ' + error.message)
+      console.error('Failed to load OPD data', error)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const callNextPatient = async () => {
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const filteredVisits = useMemo(() => {
+    if (!selectedDepartment) return visits
+    return visits.filter(v => !v.department || v.department === selectedDepartment)
+  }, [visits, selectedDepartment])
+
+  const submitWalkIn = async (event) => {
+    event.preventDefault()
+    const form = new FormData(event.target)
+    const payload = {
+      patient_id: Number(form.get('patient_id')),
+      chief_complaint: form.get('chief_complaint'),
+      department: form.get('department') || null,
+      insurance_plan: form.get('insurance_plan') || null,
+      registration_fee_paid: form.get('registration_fee_paid') === 'yes',
+      registration_fee_amount: Number(form.get('registration_fee_amount') || 0)
+    }
     try {
-      const response = await apiService.request('/opd/call-next', {
+      await apiService.request('/opd/visits/register', {
         method: 'POST',
-        body: JSON.stringify({ department: selectedDepartment })
+        body: JSON.stringify(payload)
       })
-      
-      setCurrentToken(response.token)
-      loadQueueData()
-      
-      // Trigger announcement
-      announceToken(response.token)
+      event.target.reset()
+      await loadData()
     } catch (error) {
-      alert('Failed to call next patient: ' + error.message)
+      alert(error.message || 'Failed to register walk-in visit')
     }
   }
 
-  const completeConsultation = async (tokenId) => {
+  const submitBooking = async (event) => {
+    event.preventDefault()
+    const form = new FormData(event.target)
+    const payload = {
+      patient_id: Number(form.get('patient_id')),
+      appointment_date: form.get('appointment_date'),
+      booking_source: form.get('booking_source'),
+      chief_complaint: form.get('chief_complaint'),
+      department: form.get('department') || null,
+      insurance_plan: form.get('insurance_plan') || null
+    }
     try {
-      await apiService.request(`/opd/complete/${tokenId}`, {
-        method: 'POST'
+      await apiService.request('/opd/visits/book', {
+        method: 'POST',
+        body: JSON.stringify(payload)
       })
-      
-      loadQueueData()
+      event.target.reset()
+      await loadData()
     } catch (error) {
-      alert('Failed to complete: ' + error.message)
+      alert(error.message || 'Failed to book visit')
     }
   }
 
-  const cancelToken = async (tokenId) => {
+  const callPatient = async (queueId) => {
     try {
-      await apiService.request(`/opd/cancel/${tokenId}`, {
-        method: 'POST'
-      })
-      
-      loadQueueData()
+      await apiService.request(`/opd/queue/${queueId}/call`, { method: 'POST', body: JSON.stringify({}) })
+      await loadData()
     } catch (error) {
-      alert('Failed to cancel: ' + error.message)
+      alert(error.message || 'Failed to call patient')
     }
   }
 
-  const printToken = (tokenData) => {
-    const printWindow = window.open('', '', 'height=400,width=300')
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>OPD Token</title>
-          <style>
-            body { font-family: Arial; text-align: center; padding: 20px; }
-            .token { font-size: 48px; font-weight: bold; margin: 20px 0; }
-            .info { font-size: 14px; margin: 10px 0; }
-          </style>
-        </head>
-        <body>
-          <h2>Clinic+ OPD</h2>
-          <div class="token">${tokenData.token_number}</div>
-          <div class="info">Patient: ${tokenData.patient_name}</div>
-          <div class="info">Department: ${tokenData.department}</div>
-          <div class="info">Time: ${new Date().toLocaleTimeString()}</div>
-          <div class="info">Estimated Wait: ${tokenData.estimated_wait} min</div>
-          <p style="font-size: 12px; margin-top: 30px;">Please wait for your token to be called</p>
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
-    printWindow.print()
-  }
+  const markStage = async (visit, stage) => {
+    try {
+      if (stage === 'discharge') {
+        const pendingSteps = getPendingDischargeSteps(visit)
+        if (pendingSteps.length > 0) {
+          alert(`Cannot discharge yet. Pending steps: ${pendingSteps.join(', ')}`)
+          return
+        }
+      }
 
-  const announceToken = (token) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(
-        `Token number ${token.token_number}, please proceed to consultation room ${token.room_number}`
-      )
-      window.speechSynthesis.speak(utterance)
+      if (stage === 'arrival') {
+        await apiService.request(`/opd/visits/${visit.id}/arrival`, { method: 'POST', body: JSON.stringify({}) })
+      } else if (stage === 'verify') {
+        await apiService.request(`/opd/visits/${visit.id}/verify`, {
+          method: 'POST',
+          body: JSON.stringify({
+            registration_fee_paid: true,
+            registration_fee_amount: visit.registration_fee_amount || 0,
+            verification_notes: 'Identity and insurance verified'
+          })
+        })
+      } else if (stage === 'triage') {
+        await apiService.request(`/opd/visits/${visit.id}/triage`, {
+          method: 'POST',
+          body: JSON.stringify({ priority: 'normal', notes: 'Initial triage completed', vitals: {} })
+        })
+      } else if (stage === 'assign') {
+        const providerInput = window.prompt('Enter Provider ID to assign:')
+        const providerId = Number(providerInput)
+        if (!providerId) return
+        await apiService.request(`/opd/visits/${visit.id}/assign`, {
+          method: 'POST',
+          body: JSON.stringify({ provider_id: providerId, clinic_name: visit.department || 'General Clinic' })
+        })
+      } else if (stage === 'review') {
+        await apiService.request(`/opd/visits/${visit.id}/review`, {
+          method: 'POST',
+          body: JSON.stringify({ follow_up_required: false })
+        })
+      } else if (stage === 'pharmacy') {
+        await apiService.request(`/opd/visits/${visit.id}/pharmacy/complete`, { method: 'POST', body: JSON.stringify({}) })
+      } else if (stage === 'billing') {
+        const totalAmount = Number(window.prompt('Enter total billing amount:', `${visit.total_billing_amount || 0}`) || 0)
+        await apiService.request(`/opd/visits/${visit.id}/billing/settle`, {
+          method: 'POST',
+          body: JSON.stringify({ total_amount: totalAmount })
+        })
+      } else if (stage === 'discharge') {
+        await apiService.request(`/opd/visits/${visit.id}/discharge`, {
+          method: 'POST',
+          body: JSON.stringify({
+            visit_summary: 'Outpatient visit completed successfully.',
+            discharge_notes: 'Follow medication and follow-up advice.'
+          })
+        })
+      }
+      await loadData()
+    } catch (error) {
+      const missingSteps = error?.details?.missing_steps
+      if (Array.isArray(missingSteps) && missingSteps.length > 0) {
+        alert(`Cannot complete this step yet. Pending: ${missingSteps.join(', ')}`)
+      } else {
+        alert(error.message || 'Failed to update visit stage')
+      }
     }
   }
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'waiting': return 'bg-yellow-100 text-yellow-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'completed': return 'bg-green-100 text-green-800'
-      case 'cancelled': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+  const nextAction = (visit) => {
+    switch (visit.workflow_status) {
+      case 'booked': return { label: 'Mark Arrival', stage: 'arrival' }
+      case 'arrived': return { label: 'Verify Registration', stage: 'verify' }
+      case 'registered': return { label: 'Complete Triage', stage: 'triage' }
+      case 'triaged': return { label: 'Assign Provider', stage: 'assign' }
+      case 'investigations_completed': return { label: 'Complete Review', stage: 'review' }
+      case 'review_completed': return { label: 'Mark Pharmacy Done', stage: 'pharmacy' }
+      case 'pharmacy_completed': return { label: 'Complete Billing', stage: 'billing' }
+      case 'billing_completed': return { label: 'Discharge', stage: 'discharge' }
+      default: return null
     }
+  }
+
+  const getPendingDischargeSteps = (visit) => {
+    const pending = []
+    if (!visit.review_completed) pending.push('Review')
+    if (!visit.pharmacy_completed) pending.push('Pharmacy')
+    if (!visit.billing_completed) pending.push('Billing')
+    return pending
+  }
+
+  const getTimelineState = (visit, stepKey) => {
+    const progress = visit.step_progress || []
+    const progressItem = progress.find((p) => p.step === stepKey)
+    if (progressItem?.current) return 'current'
+    if (progressItem?.completed) return 'done'
+    return 'pending'
+  }
+
+  const getTimelineClass = (state) => {
+    if (state === 'done') return 'bg-green-100 text-green-700 border-green-200'
+    if (state === 'current') return 'bg-teal-100 text-teal-800 border-teal-200'
+    return 'bg-gray-50 text-gray-500 border-gray-200'
   }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users className="w-8 h-8 text-blue-600" />
-            OPD Queue Management
+            <Users className="w-8 h-8 text-teal-700" />
+            Outpatient Visit Workflow
           </h1>
-          <p className="text-gray-600 mt-1">Token system and patient queue</p>
+          <p className="text-gray-600 mt-1">Booking, triage, consultation, diagnostics, pharmacy, billing, discharge</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={loadQueueData} variant="outline">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-          <Button onClick={callNextPatient}>
-            <Bell className="w-4 h-4 mr-2" />
-            Call Next
-          </Button>
-        </div>
+        <Button onClick={loadData} variant="outline" disabled={loading}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
-      {/* Department Selector */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card><CardContent className="pt-6"><div className="flex justify-between"><div><p className="text-sm text-gray-600">Waiting</p><p className="text-3xl font-bold text-yellow-600">{stats.waiting}</p></div><Clock className="w-8 h-8 text-yellow-600" /></div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="flex justify-between"><div><p className="text-sm text-gray-600">In Progress</p><p className="text-3xl font-bold text-teal-700">{stats.inProgress}</p></div><ClipboardCheck className="w-8 h-8 text-teal-700" /></div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="flex justify-between"><div><p className="text-sm text-gray-600">Completed</p><p className="text-3xl font-bold text-green-600">{stats.completed}</p></div><CheckCircle className="w-8 h-8 text-green-600" /></div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="flex justify-between"><div><p className="text-sm text-gray-600">Avg Wait</p><p className="text-3xl font-bold text-teal-700">{stats.avgWaitTime}m</p></div><Clock className="w-8 h-8 text-teal-700" /></div></CardContent></Card>
+      </div>
+
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <Label>Department:</Label>
-            <select
-              className="px-4 py-2 border rounded-md"
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-            >
-              <option value="general">General Medicine</option>
-              <option value="pediatrics">Pediatrics</option>
-              <option value="orthopedics">Orthopedics</option>
-              <option value="cardiology">Cardiology</option>
-              <option value="dermatology">Dermatology</option>
+          <div className="flex items-center gap-3">
+            <Label>Department</Label>
+            <select className="px-3 py-2 border rounded-md" value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)}>
+              <option value="">All</option>
+              {departments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
             </select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Waiting</p>
-                <p className="text-3xl font-bold text-yellow-600">{stats.waiting}</p>
-              </div>
-              <Clock className="w-8 h-8 text-yellow-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">In Progress</p>
-                <p className="text-3xl font-bold text-blue-600">{stats.inProgress}</p>
-              </div>
-              <Monitor className="w-8 h-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Completed Today</p>
-                <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Avg Wait Time</p>
-                <p className="text-3xl font-bold text-purple-600">{stats.avgWaitTime}m</p>
-              </div>
-              <Clock className="w-8 h-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Current Token Display */}
-      {currentToken && (
-        <Card className="bg-blue-50 border-2 border-blue-500">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-2">NOW SERVING</p>
-              <div className="text-6xl font-bold text-blue-600 mb-4">
-                {currentToken.token_number}
-              </div>
-              <p className="text-lg">
-                {currentToken.patient_name} - Room {currentToken.room_number}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Main Content */}
-      <Tabs defaultValue="queue" className="w-full">
+      <Tabs defaultValue="workflow" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="queue">Queue ({queue.filter(t => t.status === 'waiting').length})</TabsTrigger>
-          <TabsTrigger value="register">Register Patient</TabsTrigger>
-          <TabsTrigger value="display">Display Board</TabsTrigger>
+          <TabsTrigger value="workflow">Visit Workflow</TabsTrigger>
+          <TabsTrigger value="queue">Consultation Queue</TabsTrigger>
+          <TabsTrigger value="registration">Register / Book</TabsTrigger>
         </TabsList>
 
-        {/* Queue Tab */}
-        <TabsContent value="queue" className="space-y-3">
-          {queue.length > 0 ? (
-            queue.map((token) => (
-              <Card key={token.id} className={token.status === 'in_progress' ? 'border-2 border-blue-500' : ''}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-blue-600">
-                          {token.token_number}
-                        </div>
-                        <Badge className={getStatusColor(token.status)} variant="outline">
-                          {token.status}
+        <TabsContent value="workflow" className="space-y-3">
+          {filteredVisits.map((visit) => {
+            const action = nextAction(visit)
+            const pendingDischargeSteps = getPendingDischargeSteps(visit)
+            const dischargeLocked = action?.stage === 'discharge' && pendingDischargeSteps.length > 0
+            return (
+              <Card key={visit.id}>
+                <CardContent className="pt-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">Visit {visit.visit_id}</p>
+                        <Badge className={STATUS_COLORS[visit.workflow_status] || 'bg-gray-100 text-gray-800'}>
+                          {STATUS_LABELS[visit.workflow_status] || visit.workflow_status}
                         </Badge>
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">{token.patient_name}</h3>
-                        <p className="text-sm text-gray-600">
-                          Age: {token.age} | Gender: {token.gender}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          Registered: {new Date(token.created_at).toLocaleTimeString()}
-                          {token.wait_time && ` | Waiting: ${token.wait_time} min`}
-                        </p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Token: {visit.registration_token || '-'} | Dept: {visit.department || 'General'} | Complaint: {visit.chief_complaint || '-'}
+                      </p>
+                      <div className="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                        {WORKFLOW_SEQUENCE.map((step) => {
+                          const state = getTimelineState(visit, step.key)
+                          return (
+                            <div
+                              key={`${visit.id}-${step.key}`}
+                              className={`text-xs border rounded px-2 py-1 ${getTimelineClass(state)}`}
+                              title={`${step.label}: ${state}`}
+                            >
+                              {step.label}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      {token.status === 'waiting' && (
-                        <Button size="sm" onClick={() => {
-                          setCurrentToken(token)
-                          announceToken(token)
-                        }}>
-                          <Bell className="w-4 h-4 mr-1" />
-                          Call
-                        </Button>
-                      )}
-                      {token.status === 'in_progress' && (
-                        <Button size="sm" variant="outline" onClick={() => completeConsultation(token.id)}>
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Complete
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => cancelToken(token.id)}>
-                        <XCircle className="w-4 h-4" />
+                    {action && (
+                      <Button
+                        size="sm"
+                        disabled={dischargeLocked}
+                        onClick={() => markStage(visit, action.stage)}
+                        title={dischargeLocked ? `Pending: ${pendingDischargeSteps.join(', ')}` : action.label}
+                      >
+                        {action.label}
                       </Button>
-                    </div>
+                    )}
                   </div>
+                  {dischargeLocked && (
+                    <p className="text-xs text-amber-700 mt-3">
+                      Discharge locked: complete {pendingDischargeSteps.join(', ')} first.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
-            ))
-          ) : (
-            <Card>
-              <CardContent className="py-12 text-center text-gray-500">
-                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p>No patients in queue</p>
-              </CardContent>
-            </Card>
+            )
+          })}
+          {filteredVisits.length === 0 && (
+            <Card><CardContent className="py-10 text-center text-gray-500">No OPD visits found for this filter.</CardContent></Card>
           )}
         </TabsContent>
 
-        {/* Register Tab */}
-        <TabsContent value="register">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="w-5 h-5" />
-                Register New Patient
-              </CardTitle>
-              <CardDescription>Generate token for OPD consultation</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={(e) => {
-                e.preventDefault()
-                const formData = new FormData(e.target)
-                generateToken({
-                  patient_name: formData.get('patient_name'),
-                  age: formData.get('age'),
-                  gender: formData.get('gender'),
-                  phone: formData.get('phone'),
-                  visit_type: formData.get('visit_type')
-                })
-                e.target.reset()
-              }} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Patient Name *</Label>
-                    <Input name="patient_name" required placeholder="Enter full name" />
-                  </div>
-                  <div>
-                    <Label>Phone Number</Label>
-                    <Input name="phone" type="tel" placeholder="Enter phone" />
-                  </div>
+        <TabsContent value="queue" className="space-y-3">
+          {queue.map((item) => (
+            <Card key={item.id}>
+              <CardContent className="pt-5 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">Queue #{item.queue_number} - Position {item.queue_position}</p>
+                  <p className="text-sm text-gray-600">{item.patient?.name || 'Unknown patient'} | {item.patient?.chief_complaint || '-'}</p>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label>Age *</Label>
-                    <Input name="age" type="number" required placeholder="Age" />
-                  </div>
-                  <div>
-                    <Label>Gender *</Label>
-                    <select name="gender" className="w-full px-3 py-2 border rounded-md" required>
-                      <option value="">Select</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Visit Type</Label>
-                    <select name="visit_type" className="w-full px-3 py-2 border rounded-md">
-                      <option value="new">New Patient</option>
-                      <option value="followup">Follow-up</option>
-                      <option value="emergency">Emergency</option>
-                    </select>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full">
-                  <Printer className="w-4 h-4 mr-2" />
-                  Generate Token & Print
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+                <Button size="sm" onClick={() => callPatient(item.id)}>Call Patient</Button>
+              </CardContent>
+            </Card>
+          ))}
+          {queue.length === 0 && (
+            <Card><CardContent className="py-10 text-center text-gray-500">No waiting patients in queue.</CardContent></Card>
+          )}
         </TabsContent>
 
-        {/* Display Board Tab */}
-        <TabsContent value="display">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Monitor className="w-5 h-5" />
-                Display Board View
-              </CardTitle>
-              <CardDescription>Patient-facing queue display</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-900 text-white p-8 rounded-lg">
-                <div className="text-center mb-8">
-                  <h2 className="text-4xl font-bold mb-2">OPD Queue - {selectedDepartment}</h2>
-                  <p className="text-gray-400">{new Date().toLocaleString()}</p>
-                </div>
-                
-                {currentToken && (
-                  <div className="bg-blue-600 p-6 rounded-lg mb-6 text-center">
-                    <p className="text-lg mb-2">NOW SERVING</p>
-                    <div className="text-7xl font-bold mb-2">{currentToken.token_number}</div>
-                    <p className="text-xl">Room {currentToken.room_number}</p>
-                  </div>
-                )}
+        <TabsContent value="registration">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><UserPlus className="w-5 h-5" /> Walk-in Registration</CardTitle>
+                <CardDescription>For arriving patients (Step 2-3)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={submitWalkIn} className="space-y-3">
+                  <div><Label>Patient ID</Label><Input name="patient_id" type="number" required /></div>
+                  <div><Label>Chief Complaint</Label><Input name="chief_complaint" required /></div>
+                  <div><Label>Department</Label><Input name="department" placeholder="General Medicine" /></div>
+                  <div><Label>Insurance Plan</Label><Input name="insurance_plan" /></div>
+                  <div><Label>Registration Fee Paid</Label><select name="registration_fee_paid" className="w-full px-3 py-2 border rounded-md"><option value="yes">Yes</option><option value="no">No</option></select></div>
+                  <div><Label>Registration Fee Amount</Label><Input name="registration_fee_amount" type="number" step="0.01" defaultValue="0" /></div>
+                  <Button type="submit" className="w-full">Register Walk-in</Button>
+                </form>
+              </CardContent>
+            </Card>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-gray-800 p-4 rounded">
-                    <p className="text-gray-400 text-sm">Waiting</p>
-                    <p className="text-3xl font-bold">{stats.waiting}</p>
-                  </div>
-                  <div className="bg-gray-800 p-4 rounded">
-                    <p className="text-gray-400 text-sm">In Progress</p>
-                    <p className="text-3xl font-bold">{stats.inProgress}</p>
-                  </div>
-                  <div className="bg-gray-800 p-4 rounded">
-                    <p className="text-gray-400 text-sm">Avg Wait</p>
-                    <p className="text-3xl font-bold">{stats.avgWaitTime}m</p>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <h3 className="text-xl font-semibold mb-4">Upcoming</h3>
-                  <div className="space-y-2">
-                    {queue.filter(t => t.status === 'waiting').slice(0, 5).map((token) => (
-                      <div key={token.id} className="bg-gray-800 p-3 rounded flex items-center justify-between">
-                        <span className="text-2xl font-bold">{token.token_number}</span>
-                        <span className="text-gray-400">Waiting...</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Appointment Booking</CardTitle>
+                <CardDescription>Pre-book OPD visit (Step 1)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={submitBooking} className="space-y-3">
+                  <div><Label>Patient ID</Label><Input name="patient_id" type="number" required /></div>
+                  <div><Label>Appointment Date</Label><Input name="appointment_date" type="date" required /></div>
+                  <div><Label>Booking Source</Label><select name="booking_source" className="w-full px-3 py-2 border rounded-md"><option value="online">Online</option><option value="phone">Phone</option><option value="walk_in">Walk-in</option><option value="referral">Referral</option></select></div>
+                  <div><Label>Department</Label><Input name="department" placeholder="General Medicine" /></div>
+                  <div><Label>Chief Complaint</Label><Input name="chief_complaint" required /></div>
+                  <div><Label>Insurance Plan</Label><Input name="insurance_plan" /></div>
+                  <Button type="submit" className="w-full">Book Visit</Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

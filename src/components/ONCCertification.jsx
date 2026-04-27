@@ -67,12 +67,12 @@ const ONCCertification = () => {
 
   const getCategoryColor = (category) => {
     const colors = {
-      'patient_engagement': 'bg-blue-100 text-blue-800',
+      'patient_engagement': 'bg-teal-100 text-teal-800',
       'care_coordination': 'bg-green-100 text-green-800',
-      'clinical_decision_support': 'bg-purple-100 text-purple-800',
+      'clinical_decision_support': 'bg-teal-100 text-teal-900',
       'public_health': 'bg-orange-100 text-orange-800',
       'security': 'bg-red-100 text-red-800',
-      'api_access': 'bg-indigo-100 text-indigo-800'
+      'api_access': 'bg-teal-100 text-teal-900'
     };
     return colors[category] || 'bg-gray-100 text-gray-800';
   };
@@ -156,7 +156,7 @@ const ONCCertification = () => {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-blue-600 h-2 rounded-full"
+                        className="bg-teal-600 h-2 rounded-full"
                         style={{ width: `${stats.percentage}%` }}
                       />
                     </div>

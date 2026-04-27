@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils"
 
 const Alert = React.forwardRef(({ className, variant = "default", ...props }, ref) => {
   const variantClasses = {
-    default: "bg-blue-50 border-blue-200 text-blue-800",
+    default: "bg-teal-50 border-teal-200 text-teal-900",
     destructive: "bg-red-50 border-red-200 text-red-800"
   };
   

@@ -83,7 +83,7 @@ export default function HealthDataManagement({ patientId }) {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading health data...</p>
         </div>
       </div>
@@ -95,7 +95,7 @@ export default function HealthDataManagement({ patientId }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Activity className="w-8 h-8 text-blue-600" />
+            <Activity className="w-8 h-8 text-teal-700" />
             Health Data Management
           </h1>
           <p className="text-gray-600 mt-1">Comprehensive health metrics and trends</p>
@@ -114,7 +114,7 @@ export default function HealthDataManagement({ patientId }) {
 
       {/* Health Score */}
       {healthScore && (
-        <Card className="border-2 border-blue-200">
+        <Card className="border-2 border-teal-200">
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-sm text-gray-600 mb-2">Overall Health Score</p>

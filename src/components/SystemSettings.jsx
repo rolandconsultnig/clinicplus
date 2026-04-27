@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { apiService } from '../services/apiService';
 import { PageWrapper } from './PageWrapper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -8,6 +8,7 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { TIMEZONES, getUserTimezone, formatTimezoneLabel } from '../utils/timezones';
+import { LANDING_PAGE_DEFAULTS as LP } from '../config/landingPageDefaults.js';
 import { 
   Settings, 
   Save, 
@@ -24,8 +25,13 @@ import {
   FileText,
   Image,
   Type,
-  Link
+  Link,
+  LayoutGrid
 } from 'lucide-react';
+
+const HospitalModuleExpansion = lazy(() => import('./HospitalModuleExpansion.jsx'));
+const HospitalPortalsBlueprint = lazy(() => import('./HospitalPortalsBlueprint.jsx'));
+const PortalGapTracker = lazy(() => import('./PortalGapTracker.jsx'));
 
 const SystemSettings = () => {
   const [settings, setSettings] = useState({});
@@ -131,8 +137,8 @@ const SystemSettings = () => {
             heading_font: 'Raleway',
             enable_dark_mode: false,
             enable_custom_colors: false,
-            logo_path: '/logo.png',
-            favicon_path: '/logo.png',
+            logo_path: '/images/logo.png',
+            favicon_path: '/images/clinicplus-favicon-32.png',
             custom_css: ''
           };
         }
@@ -146,82 +152,15 @@ const SystemSettings = () => {
           heading_font: loadedSettings.appearance.heading_font || 'Raleway',
           enable_dark_mode: loadedSettings.appearance.enable_dark_mode || false,
           enable_custom_colors: loadedSettings.appearance.enable_custom_colors || false,
-          logo_path: loadedSettings.appearance.logo_path || '/logo.png',
-          favicon_path: loadedSettings.appearance.favicon_path || '/logo.png',
+          logo_path: loadedSettings.appearance.logo_path || '/images/logo.png',
+          favicon_path: loadedSettings.appearance.favicon_path || '/images/clinicplus-favicon-32.png',
           custom_css: loadedSettings.appearance.custom_css || ''
         };
         
-        // Initialize landing_page settings if not present
-        if (!loadedSettings.landing_page) {
-          loadedSettings.landing_page = {
-            hero_title: 'Advanced Medical Care for Your Family\'s Health',
-            hero_subtitle: 'Universal Patient-Owned Health Ecosystem',
-            hero_description: 'Clinic+ is a comprehensive, patient-centered healthcare platform that puts you in control of your medical records while connecting you with trusted healthcare providers.',
-            hero_image: '/themes/MediTrust/assets/img/health/showcase-1.webp',
-            hero_primary_button_text: 'Get Started',
-            hero_primary_button_link: '/login',
-            hero_secondary_button_text: 'Explore Services',
-            hero_secondary_button_link: '/services',
-            badge_1_icon: 'bi-shield-check-fill',
-            badge_1_title: 'HIPAA Compliant',
-            badge_1_subtitle: 'Secure & Private',
-            badge_2_icon: 'bi-telephone-fill',
-            badge_2_title: 'Emergency Line',
-            badge_2_subtitle: '24/7 Support Available',
-            badge_3_icon: 'bi-star-fill',
-            badge_3_title: 'Patient-Centered',
-            badge_3_subtitle: '4.9/5 Rating',
-            feature_1_icon: 'bi-heart-pulse-fill',
-            feature_1_title: 'Patient Records',
-            feature_1_description: 'Own and control your complete medical history with secure, encrypted storage.',
-            feature_2_icon: 'bi-calendar-check-fill',
-            feature_2_title: 'Appointments',
-            feature_2_description: 'Schedule and manage appointments with healthcare providers seamlessly.',
-            feature_3_icon: 'bi-capsule',
-            feature_3_title: 'ePrescribing',
-            feature_3_description: 'Digital prescriptions with drug interaction checks and pharmacy integration.',
-            about_title: 'Why Choose Clinic+?',
-            about_description: 'Complete control over your medical records with enterprise-grade security and seamless healthcare provider integration.',
-            about_image: '/themes/MediTrust/assets/img/health/facilities-1.webp',
-            meta_title: 'Clinic+ - Advanced Healthcare Management Platform',
-            meta_description: 'Comprehensive healthcare platform with patient-centered design',
-            meta_keywords: 'healthcare, medical records, patient portal, clinic management'
-          };
-        }
-        // Ensure all landing_page fields exist
+        // Landing page: merge saved values over shared defaults (see src/config/landingPageDefaults.js)
         loadedSettings.landing_page = {
-          hero_title: loadedSettings.landing_page.hero_title || 'Advanced Medical Care for Your Family\'s Health',
-          hero_subtitle: loadedSettings.landing_page.hero_subtitle || 'Universal Patient-Owned Health Ecosystem',
-          hero_description: loadedSettings.landing_page.hero_description || 'Clinic+ is a comprehensive, patient-centered healthcare platform.',
-          hero_image: loadedSettings.landing_page.hero_image || '/themes/MediTrust/assets/img/health/showcase-1.webp',
-          hero_primary_button_text: loadedSettings.landing_page.hero_primary_button_text || 'Get Started',
-          hero_primary_button_link: loadedSettings.landing_page.hero_primary_button_link || '/login',
-          hero_secondary_button_text: loadedSettings.landing_page.hero_secondary_button_text || 'Explore Services',
-          hero_secondary_button_link: loadedSettings.landing_page.hero_secondary_button_link || '/services',
-          badge_1_icon: loadedSettings.landing_page.badge_1_icon || 'bi-shield-check-fill',
-          badge_1_title: loadedSettings.landing_page.badge_1_title || 'HIPAA Compliant',
-          badge_1_subtitle: loadedSettings.landing_page.badge_1_subtitle || 'Secure & Private',
-          badge_2_icon: loadedSettings.landing_page.badge_2_icon || 'bi-telephone-fill',
-          badge_2_title: loadedSettings.landing_page.badge_2_title || 'Emergency Line',
-          badge_2_subtitle: loadedSettings.landing_page.badge_2_subtitle || '24/7 Support Available',
-          badge_3_icon: loadedSettings.landing_page.badge_3_icon || 'bi-star-fill',
-          badge_3_title: loadedSettings.landing_page.badge_3_title || 'Patient-Centered',
-          badge_3_subtitle: loadedSettings.landing_page.badge_3_subtitle || '4.9/5 Rating',
-          feature_1_icon: loadedSettings.landing_page.feature_1_icon || 'bi-heart-pulse-fill',
-          feature_1_title: loadedSettings.landing_page.feature_1_title || 'Patient Records',
-          feature_1_description: loadedSettings.landing_page.feature_1_description || 'Own and control your complete medical history.',
-          feature_2_icon: loadedSettings.landing_page.feature_2_icon || 'bi-calendar-check-fill',
-          feature_2_title: loadedSettings.landing_page.feature_2_title || 'Appointments',
-          feature_2_description: loadedSettings.landing_page.feature_2_description || 'Schedule and manage appointments seamlessly.',
-          feature_3_icon: loadedSettings.landing_page.feature_3_icon || 'bi-capsule',
-          feature_3_title: loadedSettings.landing_page.feature_3_title || 'ePrescribing',
-          feature_3_description: loadedSettings.landing_page.feature_3_description || 'Digital prescriptions with drug interaction checks.',
-          about_title: loadedSettings.landing_page.about_title || 'Why Choose Clinic+?',
-          about_description: loadedSettings.landing_page.about_description || 'Complete control over your medical records.',
-          about_image: loadedSettings.landing_page.about_image || '/themes/MediTrust/assets/img/health/facilities-1.webp',
-          meta_title: loadedSettings.landing_page.meta_title || 'Clinic+ - Advanced Healthcare Management Platform',
-          meta_description: loadedSettings.landing_page.meta_description || 'Comprehensive healthcare platform',
-          meta_keywords: loadedSettings.landing_page.meta_keywords || 'healthcare, medical records, patient portal'
+          ...LP,
+          ...(loadedSettings.landing_page || {}),
         };
         
         setSettings(loadedSettings);
@@ -348,14 +287,19 @@ const SystemSettings = () => {
     { id: 'notifications', name: 'Notifications', icon: Bell },
     { id: 'billing', name: 'Billing', icon: CreditCard },
     { id: 'clinical', name: 'Clinical', icon: Stethoscope },
-    { id: 'integration', name: 'Integration', icon: Plug }
+    { id: 'integration', name: 'Integration', icon: Plug },
+    {
+      id: 'hms_planning',
+      name: 'HMS Strategy',
+      icon: LayoutGrid,
+    },
   ];
 
   if (loading) {
     return (
       <PageWrapper title="System Settings" description="Configure system-wide settings" icon={Settings}>
         <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
           <p className="text-gray-600 mt-2">Loading settings...</p>
         </div>
       </PageWrapper>
@@ -405,7 +349,7 @@ const SystemSettings = () => {
                       key={category.id}
                       onClick={() => setActiveCategory(category.id)}
                       className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
-                        activeCategory === category.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                        activeCategory === category.id ? 'bg-teal-50 border-l-4 border-teal-600' : ''
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -422,15 +366,25 @@ const SystemSettings = () => {
         <div className="lg:col-span-3">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <CardTitle>{categories.find(c => c.id === activeCategory)?.name} Settings</CardTitle>
-                  <CardDescription>Configure {categories.find(c => c.id === activeCategory)?.name.toLowerCase()} preferences</CardDescription>
+                  <CardTitle>
+                    {activeCategory === 'hms_planning'
+                      ? 'HMS strategy, portals & gaps'
+                      : `${categories.find((c) => c.id === activeCategory)?.name} Settings`}
+                  </CardTitle>
+                  <CardDescription>
+                    {activeCategory === 'hms_planning'
+                      ? 'Product roadmap, role-based portal blueprint, and codebase-derived coverage (read-only; lives alongside configuration).'
+                      : `Configure ${categories.find((c) => c.id === activeCategory)?.name?.toLowerCase()} preferences`}
+                  </CardDescription>
                 </div>
-                <Button onClick={() => saveCategory(activeCategory)} disabled={saving}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
+                {activeCategory !== 'hms_planning' && (
+                  <Button onClick={() => saveCategory(activeCategory)} disabled={saving}>
+                    <Save className="w-4 h-4 mr-2" />
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -456,7 +410,7 @@ const SystemSettings = () => {
                       <select
                         value={settings.general.timezone || getUserTimezone() || 'UTC'}
                         onChange={(e) => updateSetting('general', 'timezone', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                         size={timezoneSearch ? 10 : 1}
                       >
                         {TIMEZONES
@@ -621,7 +575,7 @@ const SystemSettings = () => {
                     <select
                       value={settings.billing.currency || 'NGN'}
                       onChange={(e) => updateSetting('billing', 'currency', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     >
                       <option value="NGN">NGN - Nigerian Naira (₦) - Primary</option>
                       <option value="USD">USD - US Dollar ($)</option>
@@ -753,6 +707,43 @@ const SystemSettings = () => {
                 </div>
               )}
 
+              {activeCategory === 'hms_planning' && (
+                <Tabs defaultValue="roadmap" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="roadmap">Expansion roadmap</TabsTrigger>
+                    <TabsTrigger value="blueprint">Portals blueprint</TabsTrigger>
+                    <TabsTrigger value="gaps">Portal gap tracker</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="roadmap" className="mt-4">
+                    <Suspense
+                      fallback={
+                        <div className="py-8 text-center text-sm text-gray-600">Loading roadmap…</div>
+                      }
+                    >
+                      <HospitalModuleExpansion />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="blueprint" className="mt-4">
+                    <Suspense
+                      fallback={
+                        <div className="py-8 text-center text-sm text-gray-600">Loading blueprint…</div>
+                      }
+                    >
+                      <HospitalPortalsBlueprint />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="gaps" className="mt-4">
+                    <Suspense
+                      fallback={
+                        <div className="py-8 text-center text-sm text-gray-600">Loading gap tracker…</div>
+                      }
+                    >
+                      <PortalGapTracker />
+                    </Suspense>
+                  </TabsContent>
+                </Tabs>
+              )}
+
               {activeCategory === 'appearance' && (
                 <div className="space-y-6">
                   {settings.appearance ? (
@@ -882,7 +873,7 @@ const SystemSettings = () => {
                       <div>
                         <Label>Logo Path</Label>
                         <Input
-                          value={settings.appearance.logo_path || '/logo.png'}
+                          value={settings.appearance.logo_path || '/images/logo.png'}
                           onChange={(e) => updateSetting('appearance', 'logo_path', e.target.value)}
                         />
                       </div>
@@ -890,7 +881,7 @@ const SystemSettings = () => {
                       <div>
                         <Label>Favicon Path</Label>
                         <Input
-                          value={settings.appearance.favicon_path || '/logo.png'}
+                          value={settings.appearance.favicon_path || '/images/clinicplus-favicon-32.png'}
                           onChange={(e) => updateSetting('appearance', 'favicon_path', e.target.value)}
                         />
                       </div>
@@ -1324,7 +1315,7 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
       name: 'MediTrust',
       description: 'Modern medical template with clean design',
       preview: '/themes/MediTrust/assets/img/health/showcase-1.webp',
-      color: 'bg-blue-500'
+      color: 'bg-teal-500'
     },
     {
       id: 'Clinic',
@@ -1338,7 +1329,7 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
       name: 'MediLab',
       description: 'Medical laboratory focused design',
       preview: '/themes/MediLab-1.0.0/assets/img/about.jpg',
-      color: 'bg-purple-500'
+      color: 'bg-teal-500'
     },
     {
       id: 'MediNest',
@@ -1357,7 +1348,7 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
           onClick={() => onThemeChange(theme.id)}
           className={`relative border-2 rounded-lg overflow-hidden cursor-pointer transition-all ${
             currentTheme === theme.id
-              ? 'border-blue-600 ring-2 ring-blue-200'
+              ? 'border-teal-600 ring-2 ring-teal-200'
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
@@ -1382,7 +1373,7 @@ const ThemeSelector = ({ currentTheme, onThemeChange }) => {
                 <p className="text-sm text-gray-600 mt-1">{theme.description}</p>
               </div>
               {currentTheme === theme.id && (
-                <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                <div className="w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center">
                   <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>

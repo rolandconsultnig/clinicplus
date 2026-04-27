@@ -7,6 +7,9 @@ from src.models.user import db
 from src.auth.jwt_manager import token_required, role_required
 from datetime import datetime
 import json
+import os
+import uuid
+from werkzeug.utils import secure_filename
 
 patient_file_bp = Blueprint('patient_file', __name__)
 
@@ -176,13 +179,27 @@ def upload_patient_photo(patient_id):
     try:
         patient = Patient.query.get_or_404(patient_id)
         
-        # Handle file upload (simplified - in production use proper file handling)
+        # Handle file upload
         if 'photo' not in request.files:
             return jsonify({'error': 'No photo file provided'}), 400
         
         photo_file = request.files['photo']
-        # In production, save file and get URL
-        photo_url = f'/uploads/patients/{patient_id}/{photo_file.filename}'
+        if not photo_file.filename:
+            return jsonify({'error': 'No photo file selected'}), 400
+
+        uploads_root = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            'uploads',
+            'patients',
+            str(patient_id)
+        )
+        os.makedirs(uploads_root, exist_ok=True)
+        safe_name = secure_filename(photo_file.filename)
+        ext = os.path.splitext(safe_name)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(uploads_root, filename)
+        photo_file.save(file_path)
+        photo_url = f'/uploads/patients/{patient_id}/{filename}'
         
         # Set existing primary photo to non-primary
         PatientPhoto.query.filter_by(patient_id=patient_id, is_primary=True).update({'is_primary': False})

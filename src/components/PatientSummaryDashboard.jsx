@@ -24,9 +24,16 @@ export default function PatientSummaryDashboard({ patientId, onEdit }) {
   }, [patientId]);
 
   const loadPatientSummary = async () => {
+    if (!patientId) {
+      setSummary(null);
+      setError('Select a patient to load summary.');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const result = await apiService.request(`/api/patient-file/summary/${patientId}`, 'GET');
+      setError(null);
+      const result = await apiService.request(`/patient-file/summary/${patientId}`, 'GET');
       if (result.success) {
         setSummary(result.summary);
       } else {
@@ -43,7 +50,7 @@ export default function PatientSummaryDashboard({ patientId, onEdit }) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading patient summary...</p>
         </div>
       </div>
@@ -111,7 +118,7 @@ export default function PatientSummaryDashboard({ patientId, onEdit }) {
                 <p className="text-sm text-gray-600">Total Encounters</p>
                 <p className="text-2xl font-bold">{stats.total_encounters || 0}</p>
               </div>
-              <Calendar className="w-8 h-8 text-blue-500" />
+              <Calendar className="w-8 h-8 text-teal-600" />
             </div>
           </CardContent>
         </Card>

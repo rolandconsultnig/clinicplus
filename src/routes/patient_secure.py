@@ -274,7 +274,10 @@ def get_patient(patient_id):
 
 @patient_secure_bp.route('/', methods=['POST'])
 @token_required
-@role_required(['Physician', 'Nurse', 'Facility Administrator', 'System Administrator'])
+@role_required([
+    'Physician', 'Nurse', 'Facility Administrator', 'System Administrator',
+    'Receptionist', 'Provider', 'Pharmacist', 'Lab Technician', 'Radiographer',
+])
 @tenant_isolation_required
 def create_patient():
     """Create new patient record"""

@@ -257,7 +257,7 @@ export default function PharmacySearch({ prescriptionId, drugId, onSelectPharmac
 
                 {loading ? (
                   <div className="text-center py-8">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
                     <p className="mt-2 text-gray-600">Searching pharmacies...</p>
                   </div>
                 ) : (
@@ -269,14 +269,14 @@ export default function PharmacySearch({ prescriptionId, drugId, onSelectPharmac
                       return (
                         <Card
                           key={pharmacy.id}
-                          className="cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-blue-500"
+                          className="cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-teal-500"
                         >
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <Package className="w-5 h-5 text-blue-600" />
+                                  <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+                                    <Package className="w-5 h-5 text-teal-700" />
                                   </div>
                                   <div className="flex-1">
                                     <h3 className="font-semibold text-lg text-gray-900">{pharmacy.pharmacy_name}</h3>
@@ -407,7 +407,7 @@ export default function PharmacySearch({ prescriptionId, drugId, onSelectPharmac
               {selectedPharmacy ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-4">
-                    <Package className="w-5 h-5 text-blue-600" />
+                    <Package className="w-5 h-5 text-teal-700" />
                     <h3 className="font-semibold text-lg">{selectedPharmacy.pharmacy_name}</h3>
                   </div>
                   {inventory.length > 0 ? (

@@ -207,7 +207,7 @@ export default function ProviderWorkflows() {
     switch (status?.toLowerCase()) {
       case 'active': return 'bg-green-100 text-green-800'
       case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'completed': return 'bg-blue-100 text-blue-800'
+      case 'completed': return 'bg-teal-100 text-teal-800'
       case 'paused': return 'bg-gray-100 text-gray-800'
       default: return 'bg-gray-100 text-gray-800'
     }
@@ -218,7 +218,7 @@ export default function ProviderWorkflows() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Workflow className="w-8 h-8 text-purple-600" />
+            <Workflow className="w-8 h-8 text-teal-700" />
             Provider Workflows
           </h1>
           <p className="text-gray-600 mt-1">Automate clinical workflows and protocols</p>
@@ -237,7 +237,7 @@ export default function ProviderWorkflows() {
 
       {/* Workflow Builder Modal */}
       {showBuilder && (
-        <Card className="border-2 border-purple-500">
+        <Card className="border-2 border-teal-600">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Create New Workflow</CardTitle>
@@ -433,7 +433,7 @@ export default function ProviderWorkflows() {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
-                        className="bg-blue-600 h-2 rounded-full"
+                        className="bg-teal-600 h-2 rounded-full"
                         style={{ width: `${(workflow.completed_steps / workflow.total_steps) * 100}%` }}
                       />
                     </div>
@@ -445,7 +445,7 @@ export default function ProviderWorkflows() {
                             {step.completed ? (
                               <CheckCircle className="w-5 h-5 text-green-600" />
                             ) : step.current ? (
-                              <Clock className="w-5 h-5 text-blue-600" />
+                              <Clock className="w-5 h-5 text-teal-700" />
                             ) : (
                               <div className="w-5 h-5 border-2 rounded-full" />
                             )}
@@ -542,33 +542,36 @@ export default function ProviderWorkflows() {
               <CardDescription>Pre-built workflows for common clinical scenarios</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  { name: 'New Patient Intake', steps: 8, category: 'Registration' },
-                  { name: 'Annual Physical', steps: 12, category: 'Preventive' },
-                  { name: 'Diabetes Management', steps: 15, category: 'Chronic Care' },
-                  { name: 'Hypertension Protocol', steps: 10, category: 'Chronic Care' },
-                  { name: 'Pre-Op Assessment', steps: 14, category: 'Surgical' },
-                  { name: 'Post-Op Follow-up', steps: 9, category: 'Surgical' },
-                  { name: 'Vaccination Schedule', steps: 6, category: 'Preventive' },
-                  { name: 'Lab Result Follow-up', steps: 7, category: 'Diagnostic' },
-                  { name: 'Medication Reconciliation', steps: 11, category: 'Medication' }
-                ].map((workflow, index) => (
-                  <Card key={index} className="hover:bg-gray-50 cursor-pointer">
-                    <CardContent className="pt-6">
-                      <h4 className="font-semibold mb-2">{workflow.name}</h4>
-                      <div className="flex items-center justify-between text-sm">
-                        <Badge variant="outline">{workflow.category}</Badge>
-                        <span className="text-gray-600">{workflow.steps} steps</span>
-                      </div>
-                      <Button size="sm" className="w-full mt-3">
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add to Templates
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              {workflows.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {workflows.map((workflow) => (
+                    <Card key={workflow.id} className="hover:bg-gray-50 cursor-pointer">
+                      <CardContent className="pt-6">
+                        <h4 className="font-semibold mb-2">{workflow.name}</h4>
+                        <div className="flex items-center justify-between text-sm">
+                          <Badge variant="outline">{workflow.category}</Badge>
+                          <span className="text-gray-600">{workflow.step_count} steps</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full mt-3"
+                          onClick={() => {
+                            const patientId = prompt('Enter Patient ID:')
+                            if (patientId) startWorkflow(workflow.id, patientId)
+                          }}
+                        >
+                          <Play className="w-4 h-4 mr-1" />
+                          Start Workflow
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 text-gray-500">
+                  No workflow templates available.
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

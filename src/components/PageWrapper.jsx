@@ -7,7 +7,7 @@ import { ChevronRight, Home } from 'lucide-react';
  */
 export function PageWrapper({ title, description, icon: Icon, children, actions, breadcrumbs }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/35 to-slate-100">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Breadcrumbs */}
         {breadcrumbs && breadcrumbs.length > 0 && (
@@ -27,16 +27,16 @@ export function PageWrapper({ title, description, icon: Icon, children, actions,
         )}
 
         {/* Enhanced Header Section */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/50 p-6 lg:p-8 transition-all duration-200 hover:shadow-md">
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/80 p-6 lg:p-8 transition-all duration-200 hover:shadow-md hover:border-teal-200/60">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
               {Icon && (
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 transform transition-transform hover:scale-105">
+                <div className="w-14 h-14 bg-gradient-to-br from-teal-600 to-teal-800 rounded-xl flex items-center justify-center shadow-lg shadow-teal-900/20">
                   <Icon className="w-7 h-7 text-white" />
                 </div>
               )}
               <div>
-                <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent">
+                <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
                   {title}
                 </h1>
                 {description && (

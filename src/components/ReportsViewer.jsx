@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { FileText, Download, Calendar, Users, DollarSign, TestTube } from 'lucide-react';
+import { Download, Book } from 'lucide-react';
 
 export default function ReportsViewer() {
   const [reportType, setReportType] = useState('clinical');
@@ -18,6 +18,10 @@ export default function ReportsViewer() {
   });
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [ledgerPatientId, setLedgerPatientId] = useState('');
+  const [ledgerData, setLedgerData] = useState(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerError, setLedgerError] = useState(null);
 
   const loadReport = async (type) => {
     try {
@@ -62,7 +66,61 @@ export default function ReportsViewer() {
     }
   };
 
+  const loadPatientLedger = async () => {
+    const id = parseInt(ledgerPatientId, 10);
+    if (!id || id < 1) {
+      setLedgerError('Enter a valid patient ID');
+      return;
+    }
+    setLedgerError(null);
+    setLedgerLoading(true);
+    try {
+      const result = await apiService.request(`/api/reports/patient-ledger/${id}`, 'GET');
+      if (result.success) {
+        setLedgerData(result);
+      } else {
+        setLedgerData(null);
+        setLedgerError(result.error || 'Could not load ledger');
+      }
+    } catch (err) {
+      setLedgerData(null);
+      setLedgerError(err.message || 'Could not load ledger');
+    } finally {
+      setLedgerLoading(false);
+    }
+  };
+
+  const downloadPatientLedgerCsv = async () => {
+    const id = parseInt(ledgerPatientId, 10);
+    if (!id || id < 1) {
+      setLedgerError('Enter a valid patient ID');
+      return;
+    }
+    setLedgerError(null);
+    const token = localStorage.getItem('auth_token');
+    const base = import.meta.env.VITE_API_BASE_URL || '/api';
+    const url = `${base.replace(/\/$/, '')}/reports/patient-ledger/${id}/export.csv`;
+    try {
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || res.statusText);
+      }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `patient-${id}-ledger.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      setLedgerError(e.message || 'Download failed');
+    }
+  };
+
   useEffect(() => {
+    if (reportType === 'patient-ledger') return;
     loadReport(reportType);
   }, [reportType, dateRange]);
 
@@ -97,13 +155,17 @@ export default function ReportsViewer() {
           </div>
 
           <Tabs value={reportType} onValueChange={setReportType}>
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1">
               <TabsTrigger value="clinical">Clinical</TabsTrigger>
               <TabsTrigger value="patient-list">Patients</TabsTrigger>
               <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="appointments">Appointments</TabsTrigger>
               <TabsTrigger value="encounters">Encounters</TabsTrigger>
               <TabsTrigger value="collections">Collections</TabsTrigger>
+              <TabsTrigger value="patient-ledger" className="gap-1">
+                <Book className="h-3.5 w-3.5" />
+                Ledger
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="clinical" className="mt-4">
@@ -261,6 +323,64 @@ export default function ReportsViewer() {
                 </div>
               ) : (
                 <p className="text-gray-500">No data available</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="patient-ledger" className="mt-4 space-y-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <Label>Patient ID</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-40 mt-1"
+                    value={ledgerPatientId}
+                    onChange={(e) => setLedgerPatientId(e.target.value)}
+                    placeholder="e.g. 1"
+                  />
+                </div>
+                <Button onClick={loadPatientLedger} disabled={ledgerLoading}>
+                  {ledgerLoading ? 'Loading…' : 'Load ledger'}
+                </Button>
+                <Button variant="outline" onClick={downloadPatientLedgerCsv}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
+              </div>
+              {ledgerError && <p className="text-sm text-red-600">{ledgerError}</p>}
+              {ledgerData?.success && (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    {ledgerData.patient?.first_name} {ledgerData.patient?.last_name} — balance:{' '}
+                    <span className="font-semibold">${Number(ledgerData.current_balance || 0).toFixed(2)}</span>
+                  </p>
+                  <div className="border rounded-md overflow-x-auto max-h-96">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 text-left">
+                          <th className="p-2">Date</th>
+                          <th className="p-2">Type</th>
+                          <th className="p-2">Description</th>
+                          <th className="p-2">Debit</th>
+                          <th className="p-2">Credit</th>
+                          <th className="p-2">Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(ledgerData.ledger || []).map((row, idx) => (
+                          <tr key={idx} className="border-t">
+                            <td className="p-2 whitespace-nowrap">{row.date || '—'}</td>
+                            <td className="p-2">{row.type}</td>
+                            <td className="p-2 max-w-md truncate" title={row.description}>{row.description}</td>
+                            <td className="p-2">{Number(row.debit || 0).toFixed(2)}</td>
+                            <td className="p-2">{Number(row.credit || 0).toFixed(2)}</td>
+                            <td className="p-2 font-medium">{Number(row.balance || 0).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               )}
             </TabsContent>
           </Tabs>

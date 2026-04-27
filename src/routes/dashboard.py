@@ -7,6 +7,8 @@ from src.auth.jwt_manager import token_required, role_required
 from src.models.user import db
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from src.models.billing import Payment
+from src.models.opd import OPDQueue
 
 # Import models with error handling
 try:
@@ -55,6 +57,20 @@ def get_admin_stats():
         try:
             from src.models.provider import Provider
             stats['total_providers'] = Provider.query.count()
+        except:
+            pass
+
+        try:
+            from src.models.scheduling import Appointment as AppointmentModel
+            stats['total_appointments'] = AppointmentModel.query.count()
+        except:
+            pass
+
+        try:
+            from src.models.clinical import ClinicalEncounter
+            stats['active_encounters'] = ClinicalEncounter.query.filter(
+                ClinicalEncounter.encounter_status.in_(['scheduled', 'in_progress'])
+            ).count()
         except:
             pass
         
@@ -113,21 +129,30 @@ def get_pending_actions():
         # Count upcoming appointments (for doctors/nurses)
         if ('physician' in user_type or 'nurse' in user_type or 'doctor' in user_type) and Appointment:
             try:
+                provider_id = None
+                try:
+                    from src.models.provider import Provider as ProviderModel
+                    provider = ProviderModel.query.filter_by(user_account_id=user_id).first()
+                    provider_id = provider.id if provider else None
+                except:
+                    provider_id = None
                 tomorrow = datetime.now() + timedelta(days=1)
-                pending['appointments'] = Appointment.query.filter(
-                    Appointment.provider_id == user_id,
+                query = Appointment.query.filter(
                     Appointment.appointment_date <= tomorrow,
                     Appointment.status == 'scheduled'
-                ).count()
+                )
+                if provider_id:
+                    query = query.filter(Appointment.provider_id == provider_id)
+                pending['appointments'] = query.count()
             except:
                 pending['appointments'] = 0
         
         # Count unread messages
         try:
             from src.models.messaging import Message
-            pending['messages'] = Message.query.filter_by(
-                recipient_id=user_id,
-                is_read=False
+            pending['messages'] = Message.query.filter(
+                Message.recipient_id == user_id,
+                Message.status == 'unread'
             ).count()
         except:
             pending['messages'] = 0
@@ -167,13 +192,14 @@ def get_receptionist_stats():
     """Get receptionist dashboard statistics"""
     try:
         from src.models.patient import Patient
-        from src.models.billing import Invoice
         
         today = datetime.now().date()
+        facility_id = request.token_payload.get('facility_id')
         
         # Today's registrations
         today_registrations = Patient.query.filter(
-            func.date(Patient.created_at) == today
+            func.date(Patient.created_at) == today,
+            Patient.facility_id == facility_id
         ).count()
         
         # Waiting patients (those with appointments today but not checked out)
@@ -181,6 +207,7 @@ def get_receptionist_stats():
         if Appointment:
             try:
                 waiting_patients = Appointment.query.filter(
+                    Appointment.facility_id == facility_id,
                     func.date(Appointment.appointment_date) == today,
                     Appointment.status.in_(['scheduled', 'checked_in'])
                 ).count()
@@ -190,16 +217,31 @@ def get_receptionist_stats():
         # Total collections today
         total_collections = 0
         try:
-            collections = db.session.query(func.sum(Invoice.total_amount)).filter(
-                func.date(Invoice.created_at) == today,
-                Invoice.payment_status == 'paid'
+            collections = db.session.query(func.coalesce(func.sum(Payment.payment_amount), 0)).filter(
+                Payment.payment_date == today,
+                Payment.facility_id == facility_id,
+                Payment.status == 'completed'
             ).scalar()
             total_collections = float(collections) if collections else 0
         except:
             pass
         
-        # Average wait time (mock for now)
-        avg_wait_time = 15  # minutes
+        # Average wait time from current queue entries
+        avg_wait_time = 0
+        try:
+            waiting_entries = OPDQueue.query.filter(
+                OPDQueue.facility_id == facility_id,
+                OPDQueue.status == 'waiting'
+            ).all()
+            if waiting_entries:
+                now = datetime.utcnow()
+                waits = [
+                    max(0, int((now - row.created_at).total_seconds() / 60))
+                    for row in waiting_entries if row.created_at
+                ]
+                avg_wait_time = int(sum(waits) / len(waits)) if waits else 0
+        except:
+            avg_wait_time = 0
         
         return jsonify({
             'success': True,

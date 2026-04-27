@@ -117,7 +117,7 @@ export default function UnifiedPatientSelector({ onSelect, showQuickInfo = true 
             <div className="absolute z-50 mt-2 w-full bg-white rounded-lg shadow-lg border max-h-96 overflow-y-auto">
               {searching ? (
                 <div className="p-4 text-center text-gray-500">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600 mx-auto"></div>
                   <p className="mt-2 text-sm">Searching...</p>
                 </div>
               ) : searchResults.length > 0 ? (
@@ -164,16 +164,16 @@ export default function UnifiedPatientSelector({ onSelect, showQuickInfo = true 
 
       {/* Selected Patient Info */}
       {selectedPatient && showQuickInfo && (
-        <Card className="border-blue-300 bg-blue-50">
+        <Card className="border-teal-300 bg-teal-50">
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div className="flex items-start space-x-3 flex-1">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-teal-600 rounded-full flex items-center justify-center">
                   <User className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
-                    <h3 className="font-bold text-lg text-blue-900">
+                    <h3 className="font-bold text-lg text-teal-900">
                       {selectedPatient.first_name} {selectedPatient.last_name}
                     </h3>
                     <Badge variant="outline" className="text-xs">
@@ -183,27 +183,27 @@ export default function UnifiedPatientSelector({ onSelect, showQuickInfo = true 
                   
                   <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
                     <div>
-                      <p className="text-xs text-blue-600">MRN</p>
-                      <p className="font-semibold text-blue-900">
+                      <p className="text-xs text-teal-700">MRN</p>
+                      <p className="font-semibold text-teal-900">
                         {selectedPatient.universal_patient_id}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-blue-600">Age</p>
-                      <p className="font-semibold text-blue-900">
+                      <p className="text-xs text-teal-700">Age</p>
+                      <p className="font-semibold text-teal-900">
                         {calculateAge(selectedPatient.date_of_birth)} years
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-blue-600">DOB</p>
-                      <p className="font-semibold text-blue-900">
+                      <p className="text-xs text-teal-700">DOB</p>
+                      <p className="font-semibold text-teal-900">
                         {selectedPatient.date_of_birth}
                       </p>
                     </div>
                     {selectedPatient.phone_primary && (
                       <div>
-                        <p className="text-xs text-blue-600">Phone</p>
-                        <p className="font-semibold text-blue-900">
+                        <p className="text-xs text-teal-700">Phone</p>
+                        <p className="font-semibold text-teal-900">
                           {selectedPatient.phone_primary}
                         </p>
                       </div>
@@ -224,7 +224,7 @@ export default function UnifiedPatientSelector({ onSelect, showQuickInfo = true 
                 variant="ghost"
                 size="sm"
                 onClick={handleClearSelection}
-                className="text-blue-600"
+                className="text-teal-700"
               >
                 <X className="w-4 h-4" />
               </Button>

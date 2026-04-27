@@ -34,34 +34,34 @@ try {
     exit 1
 }
 
-# Check port 5000
-Write-Host "Checking port 5000..." -ForegroundColor Yellow
-$port5000 = netstat -ano | findstr ":5000" | findstr "LISTENING"
-if ($port5000) {
-    Write-Host "⚠ Port 5000 is already in use" -ForegroundColor Yellow
+# Check port 4300
+Write-Host "Checking port 4300..." -ForegroundColor Yellow
+$port4300 = netstat -ano | findstr ":4300" | findstr "LISTENING"
+if ($port4300) {
+    Write-Host "⚠ Port 4300 is already in use" -ForegroundColor Yellow
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:5000/api/health" -TimeoutSec 2 -UseBasicParsing
+        $response = Invoke-WebRequest -Uri "http://localhost:4300/api/health" -TimeoutSec 2 -UseBasicParsing
         Write-Host "✓ Backend server is already running!" -ForegroundColor Green
         $backendRunning = $true
     } catch {
-        Write-Host "✗ Port 5000 is in use but server not responding" -ForegroundColor Red
+        Write-Host "✗ Port 4300 is in use but server not responding" -ForegroundColor Red
         $backendRunning = $false
     }
 } else {
     $backendRunning = $false
 }
 
-# Check port 5173
-Write-Host "Checking port 5173..." -ForegroundColor Yellow
-$port5173 = netstat -ano | findstr ":5173" | findstr "LISTENING"
-if ($port5173) {
-    Write-Host "⚠ Port 5173 is already in use" -ForegroundColor Yellow
+# Check port 4305
+Write-Host "Checking port 4305..." -ForegroundColor Yellow
+$port4305 = netstat -ano | findstr ":4305" | findstr "LISTENING"
+if ($port4305) {
+    Write-Host "⚠ Port 4305 is already in use" -ForegroundColor Yellow
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:5173" -TimeoutSec 2 -UseBasicParsing
+        $response = Invoke-WebRequest -Uri "http://localhost:4305" -TimeoutSec 2 -UseBasicParsing
         Write-Host "✓ Frontend server is already running!" -ForegroundColor Green
         $frontendRunning = $true
     } catch {
-        Write-Host "✗ Port 5173 is in use but server not responding" -ForegroundColor Red
+        Write-Host "✗ Port 4305 is in use but server not responding" -ForegroundColor Red
         $frontendRunning = $false
     }
 } else {
@@ -73,14 +73,14 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Server Status" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 if ($backendRunning) {
-    Write-Host "Backend (http://localhost:5000):  RUNNING ✓" -ForegroundColor Green
+    Write-Host "Backend (http://localhost:4300):  RUNNING ✓" -ForegroundColor Green
 } else {
-    Write-Host "Backend (http://localhost:5000):  NOT RUNNING ✗" -ForegroundColor Red
+    Write-Host "Backend (http://localhost:4300):  NOT RUNNING ✗" -ForegroundColor Red
 }
 if ($frontendRunning) {
-    Write-Host "Frontend (http://localhost:5173): RUNNING ✓" -ForegroundColor Green
+    Write-Host "Frontend (http://localhost:4305): RUNNING ✓" -ForegroundColor Green
 } else {
-    Write-Host "Frontend (http://localhost:5173): NOT RUNNING ✗" -ForegroundColor Red
+    Write-Host "Frontend (http://localhost:4305): NOT RUNNING ✗" -ForegroundColor Red
 }
 Write-Host ""
 
@@ -103,8 +103,8 @@ Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Access Your Application" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Frontend: http://localhost:5173" -ForegroundColor Green
-Write-Host "Backend API: http://localhost:5000/api" -ForegroundColor Green
+Write-Host "Frontend: http://localhost:4305" -ForegroundColor Green
+Write-Host "Backend API: http://localhost:4300/api" -ForegroundColor Green
 Write-Host ""
 Write-Host "Press any key to exit this script (servers will continue running)..."
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

@@ -245,7 +245,7 @@ const TreatmentPlans = ({ patientId }) => {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
               <p className="text-gray-600 mt-2">Loading treatment plans...</p>
             </div>
           ) : plans.length === 0 ? (

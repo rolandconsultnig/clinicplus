@@ -193,7 +193,7 @@ export default function DataImportExport() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Database className="w-8 h-8 text-indigo-600" />
+            <Database className="w-8 h-8 text-teal-700" />
             Data Import/Export
           </h1>
           <p className="text-gray-600 mt-1">Bulk data migration and backup tools</p>
@@ -212,7 +212,7 @@ export default function DataImportExport() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Download className="w-5 h-5 text-blue-600" />
+                <Download className="w-5 h-5 text-teal-700" />
                 Export Data
               </CardTitle>
               <CardDescription>Download data in various formats</CardDescription>
@@ -273,7 +273,7 @@ export default function DataImportExport() {
               <Button 
                 onClick={handleExport} 
                 disabled={loading} 
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-teal-600 hover:bg-teal-700"
               >
                 {loading ? (
                   <>
@@ -291,15 +291,15 @@ export default function DataImportExport() {
               {loading && (
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div 
-                    className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                    className="bg-teal-600 h-3 rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
               )}
 
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-2">Export Information:</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
+              <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                <h4 className="font-semibold text-teal-900 mb-2">Export Information:</h4>
+                <ul className="text-sm text-teal-800 space-y-1">
                   <li>• Exports include all related data</li>
                   <li>• JSON format preserves relationships</li>
                   <li>• CSV format is flat (single table)</li>
@@ -447,7 +447,7 @@ export default function DataImportExport() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Download className="w-5 h-5 text-blue-600" />
+                  <Download className="w-5 h-5 text-teal-700" />
                   Export History
                 </CardTitle>
               </CardHeader>

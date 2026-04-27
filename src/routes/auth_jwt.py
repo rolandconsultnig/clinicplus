@@ -16,14 +16,56 @@ from datetime import datetime
 
 auth_jwt_bp = Blueprint('auth_jwt', __name__)
 
+
+def _resolve_patient_for_profile(user_account):
+    """Patient row for portal users (strict: account is a patient type)."""
+    if str(user_account.user_type or '').lower() != 'patient':
+        return None
+    patient = Patient.query.filter_by(user_account_id=user_account.id).first()
+    if not patient and user_account.patient_id:
+        patient = Patient.query.get(user_account.patient_id)
+    return patient
+
+
+def _resolve_provider_for_profile(user_account):
+    """Provider row for physicians, nurses, etc. — linked by provider_id or user_account_id."""
+    if user_account.provider_id:
+        provider = Provider.query.get(user_account.provider_id)
+        if provider:
+            return provider
+    return Provider.query.filter_by(user_account_id=user_account.id).first()
+
+
 @auth_jwt_bp.route('/login', methods=['POST'])
 def jwt_login():
-    """JWT-based authentication"""
+    """JWT-based authentication with multi-tenant subdomain support"""
     try:
         data = request.get_json()
         username = data.get('username')
         password = data.get('password')
-        facility_id = data.get('facility_id')  # Optional facility context
+        facility_id = data.get('facility_id')  # Optional facility context from frontend
+        
+        # Auto-detect facility from Origin header (subdomain) if not provided
+        if not facility_id:
+            origin = request.headers.get('Origin', '')
+            if origin:
+                # Extract subdomain from origin (e.g., http://elvis.localhost:4305 -> elvis)
+                import re
+                match = re.match(r'https?://([a-zA-Z0-9-]+)\.(localhost|clinicplus\.org)', origin)
+                if match:
+                    subdomain = match.group(1).lower()
+                    # Find facility by facility_id (subdomain)
+                    facility = Facility.query.filter_by(facility_id=subdomain, is_active=True).first()
+                    if facility:
+                        facility_id = facility.id
+                        print(f"[LOGIN] Auto-detected facility from subdomain: {subdomain} -> facility_id: {facility_id}")
+        
+        # If user has a default facility_id, use it if no facility_id was detected
+        if not facility_id:
+            user_account = UserAccount.query.filter_by(username=username, is_active=True).first()
+            if user_account and user_account.facility_id:
+                facility_id = user_account.facility_id
+                print(f"[LOGIN] Using user's default facility_id: {facility_id}")
         
         if not username or not password:
             return jsonify({'error': 'Username and password required'}), 400
@@ -42,6 +84,10 @@ def jwt_login():
             return jsonify({'error': result['error']}), 401
             
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[LOGIN ERROR] {str(e)}")
+        print(f"[LOGIN ERROR TRACEBACK]\n{error_trace}")
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 @auth_jwt_bp.route('/refresh-token', methods=['POST'])
@@ -120,6 +166,18 @@ def get_profile():
         except:
             pass
         
+        # Get facility information
+        facility_info = None
+        if user_account.facility_id:
+            facility = Facility.query.get(user_account.facility_id)
+            if facility:
+                facility_info = {
+                    'id': facility.id,
+                    'facility_id': facility.facility_id,
+                    'facility_name': facility.facility_name,
+                    'facility_type': facility.facility_type
+                }
+        
         profile = {
             'id': user_account.id,
             'username': user_account.username,
@@ -128,44 +186,44 @@ def get_profile():
             'is_active': user_account.is_active,
             'last_login': user_account.last_login.isoformat() if user_account.last_login else None,
             'facility_id': user_account.facility_id,
+            'facility': facility_info,  # Add facility object
             'patient_id': user_account.patient_id,
             'provider_id': user_account.provider_id,
             'facilities': user_facilities
         }
         
-        # Add patient or provider specific information
-        if user_account.user_type == 'patient':
-            patient = Patient.query.filter_by(user_account_id=user_account.id).first()
-            if patient:
-                profile['patient_info'] = {
-                    'universal_patient_id': patient.universal_patient_id,
-                    'first_name': patient.first_name,
-                    'last_name': patient.last_name,
-                    'date_of_birth': patient.date_of_birth.isoformat() if patient.date_of_birth else None,
-                    'gender': patient.gender,
-                    'phone_primary': patient.phone_primary,
-                    'phone': patient.phone_primary,  # Alias for compatibility
-                    'address': patient.address_line_1 or '',  # Add address
-                    'allow_cross_facility_sharing': patient.allow_cross_facility_sharing
-                }
-                profile['patient_id'] = patient.id
-        
-        elif user_account.user_type == 'provider':
-            provider = Provider.query.filter_by(user_account_id=user_account.id).first()
-            if provider:
-                profile['provider_info'] = {
-                    'universal_provider_id': provider.universal_provider_id,
-                    'first_name': provider.first_name,
-                    'last_name': provider.last_name,
-                    'title': provider.title,
-                    'provider_type': provider.provider_type,
-                    'specialty': provider.specialty,
-                    'license_number': provider.license_number or provider.medical_license_number,
-                    'phone': provider.phone or '',
-                    'email': provider.email or user_account.email
-                }
-                profile['provider_id'] = provider.id
-        
+        # Add patient-specific information (patient accounts only)
+        patient = _resolve_patient_for_profile(user_account)
+        if patient:
+            profile['patient_info'] = {
+                'universal_patient_id': patient.universal_patient_id,
+                'first_name': patient.first_name,
+                'last_name': patient.last_name,
+                'date_of_birth': patient.date_of_birth.isoformat() if patient.date_of_birth else None,
+                'gender': patient.gender,
+                'phone_primary': patient.phone_primary,
+                'phone': patient.phone_primary,
+                'address': patient.address_line_1 or '',
+                'allow_cross_facility_sharing': patient.allow_cross_facility_sharing
+            }
+            profile['patient_id'] = patient.id
+
+        # Add provider/clinical staff information whenever a Provider row exists
+        provider = _resolve_provider_for_profile(user_account)
+        if provider:
+            profile['provider_info'] = {
+                'universal_provider_id': provider.universal_provider_id,
+                'first_name': provider.first_name,
+                'last_name': provider.last_name,
+                'title': provider.title,
+                'provider_type': provider.provider_type,
+                'specialty': provider.specialty,
+                'license_number': provider.license_number or provider.medical_license_number,
+                'phone': provider.phone or '',
+                'email': provider.email or user_account.email
+            }
+            profile['provider_id'] = provider.id
+
         # Get user roles
         user_roles = UserRole.query.filter_by(user_account_id=user_account.id, is_active=True).all()
         roles = []
@@ -179,7 +237,7 @@ def get_profile():
                     'role_description': role.role_description,
                     'category': getattr(role, 'role_category', 'general'),  # Add category
                     'facility_id': ur.facility_id,
-                    'assigned_at': ur.created_at.isoformat() if ur.created_at else None
+                    'assigned_at': ur.assigned_at.isoformat() if ur.assigned_at else None
                 })
         profile['roles'] = roles
         
@@ -221,33 +279,37 @@ def update_profile():
             user_account.email = data['email']
         
         # Update patient-specific data
-        if user_account.user_type == 'patient' and 'patient_data' in data:
-            patient = Patient.query.filter_by(user_account_id=user_account.id).first()
-            if patient:
-                patient_data = data['patient_data']
-                if 'first_name' in patient_data:
-                    patient.first_name = patient_data['first_name']
-                if 'last_name' in patient_data:
-                    patient.last_name = patient_data['last_name']
-                if 'phone' in patient_data:
-                    patient.phone_primary = patient_data['phone']
-                if 'address' in patient_data:
-                    patient.address_line_1 = patient_data['address']
-        
-        # Update provider-specific data
-        elif user_account.user_type == 'provider' and 'provider_data' in data:
-            provider = Provider.query.filter_by(user_account_id=user_account.id).first()
-            if provider:
-                provider_data = data['provider_data']
-                if 'first_name' in provider_data:
-                    provider.first_name = provider_data['first_name']
-                if 'last_name' in provider_data:
-                    provider.last_name = provider_data['last_name']
-                if 'phone' in provider_data:
-                    provider.phone = provider_data['phone']
-                if 'email' in provider_data:
-                    provider.email = provider_data['email']
-        
+        patient = _resolve_patient_for_profile(user_account)
+        if patient and 'patient_data' in data:
+            patient_data = data['patient_data'] or {}
+            if 'first_name' in patient_data:
+                patient.first_name = patient_data['first_name']
+            if 'last_name' in patient_data:
+                patient.last_name = patient_data['last_name']
+            if 'phone' in patient_data:
+                patient.phone_primary = patient_data['phone']
+            if 'address' in patient_data:
+                patient.address_line_1 = patient_data['address']
+
+        # Update provider / clinical staff row (any account linked to a Provider)
+        provider = _resolve_provider_for_profile(user_account)
+        if provider and 'provider_data' in data:
+            provider_data = data['provider_data'] or {}
+            if 'first_name' in provider_data:
+                provider.first_name = provider_data['first_name']
+            if 'last_name' in provider_data:
+                provider.last_name = provider_data['last_name']
+            if 'phone' in provider_data:
+                provider.phone = provider_data['phone']
+            if 'email' in provider_data:
+                provider.email = provider_data['email']
+            if 'specialty' in provider_data:
+                provider.specialty = provider_data['specialty']
+            if 'license_number' in provider_data:
+                lic = provider_data.get('license_number')
+                provider.license_number = lic
+                provider.medical_license_number = lic
+
         db.session.commit()
         
         # Return success response

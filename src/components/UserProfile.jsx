@@ -7,6 +7,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { getStoredProfilePhoto, setStoredProfilePhoto } from '../utils/profilePhoto';
 import { 
   User, 
   Mail, 
@@ -32,21 +34,41 @@ import {
   Clock,
   AlertTriangle,
   Smartphone,
-  Moon
+  Moon,
+  Camera,
+  Trash2
 } from 'lucide-react';
 
-const UserProfile = ({ user: currentUser }) => {
+const isPatientAccount = (ut) => String(ut || '').toLowerCase() === 'patient';
+
+const hasProviderProfile = (p) => !!(p?.provider_id || p?.provider_data);
+
+const MAX_PROFILE_PHOTO_SIZE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_PROFILE_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read image file'));
+    reader.readAsDataURL(file);
+  });
+
+const UserProfile = ({ user: currentUser, onUserUpdate }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [editMode, setEditMode] = useState(true); // Start in edit mode by default
+  const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({});
   const [passwordData, setPasswordData] = useState({
     current_password: '',
     new_password: '',
     confirm_password: ''
   });
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [photoSaving, setPhotoSaving] = useState(false);
+  const [photoError, setPhotoError] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -69,6 +91,7 @@ const UserProfile = ({ user: currentUser }) => {
           provider_id: user.provider_id,
           roles: user.roles || [],
           mfa_enabled: user.mfa_enabled || false,
+          avatar_url: user.avatar_url || getStoredProfilePhoto(user) || '',
           // Map patient_info to patient_data for consistency
           patient_data: user.patient_info ? {
             first_name: user.patient_info.first_name,
@@ -88,11 +111,18 @@ const UserProfile = ({ user: currentUser }) => {
           } : null
         };
         setProfile(profileData);
+        setPhotoPreview(profileData.avatar_url || '');
+        const pd = profileData.patient_data || {};
+        const pr = profileData.provider_data || {};
         setFormData({
           username: profileData.username,
           email: profileData.email,
-          ...(profileData.patient_data || {}),
-          ...(profileData.provider_data || {})
+          first_name: pd.first_name ?? pr.first_name ?? '',
+          last_name: pd.last_name ?? pr.last_name ?? '',
+          phone: pd.phone ?? pr.phone ?? '',
+          address: pd.address ?? '',
+          specialty: pr.specialty ?? '',
+          license_number: pr.license_number ?? '',
         });
       }
     } catch (error) {
@@ -102,7 +132,65 @@ const UserProfile = ({ user: currentUser }) => {
     }
   };
 
+  const updateAuthStorageAndUser = (avatarUrl) => {
+    const baseUser = {
+      ...currentUser,
+      id: profile?.id || currentUser?.id,
+      username: profile?.username || currentUser?.username,
+      email: profile?.email || currentUser?.email,
+    };
+    const nextUser = {
+      ...baseUser,
+      avatar_url: avatarUrl || null,
+    };
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('auth_user', JSON.stringify(nextUser));
+    }
+    if (typeof onUserUpdate === 'function') {
+      onUserUpdate(nextUser);
+    }
+    setProfile((prev) => (prev ? { ...prev, avatar_url: avatarUrl || '' } : prev));
+  };
+
+  const handleProfilePhotoSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!ALLOWED_PROFILE_PHOTO_TYPES.has(file.type)) {
+      setPhotoError('Use JPG, PNG, or WEBP image format.');
+      return;
+    }
+    if (file.size > MAX_PROFILE_PHOTO_SIZE_BYTES) {
+      setPhotoError('Image must be 2MB or smaller.');
+      return;
+    }
+
+    try {
+      setPhotoSaving(true);
+      setPhotoError('');
+      const dataUrl = await fileToDataUrl(file);
+      const identityUser = profile || currentUser;
+      setStoredProfilePhoto(identityUser, dataUrl);
+      setPhotoPreview(dataUrl);
+      updateAuthStorageAndUser(dataUrl);
+    } catch (error) {
+      setPhotoError(error?.message || 'Failed to save profile photo.');
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
+
+  const handleRemoveProfilePhoto = () => {
+    const identityUser = profile || currentUser;
+    setStoredProfilePhoto(identityUser, null);
+    setPhotoPreview('');
+    setPhotoError('');
+    updateAuthStorageAndUser(null);
+  };
+
   const handleSave = async () => {
+    if (!profile) return;
     try {
       setSaving(true);
       const updateData = {
@@ -110,8 +198,7 @@ const UserProfile = ({ user: currentUser }) => {
         email: formData.email
       };
 
-      // Add role-specific data
-      if (profile.user_type === 'patient' && profile.patient_id) {
+      if (isPatientAccount(profile.user_type) && profile.patient_id) {
         updateData.patient_data = {
           first_name: formData.first_name,
           last_name: formData.last_name,
@@ -120,12 +207,14 @@ const UserProfile = ({ user: currentUser }) => {
         };
       }
 
-      if (profile.user_type === 'provider' && profile.provider_id) {
+      if (hasProviderProfile(profile)) {
         updateData.provider_data = {
           first_name: formData.first_name,
           last_name: formData.last_name,
           phone: formData.phone,
-          email: formData.email
+          email: formData.email,
+          specialty: formData.specialty,
+          license_number: formData.license_number
         };
       }
 
@@ -135,7 +224,6 @@ const UserProfile = ({ user: currentUser }) => {
       });
 
       if (result.success) {
-        // Reload profile to get updated data
         await loadProfile();
         setEditMode(false);
         alert('Profile updated successfully!');
@@ -205,9 +293,9 @@ const UserProfile = ({ user: currentUser }) => {
   const getRoleColor = (roleCategory) => {
     switch (roleCategory) {
       case 'clinical':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-teal-100 text-teal-800';
       case 'administrative':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-teal-100 text-teal-900';
       case 'patient':
         return 'bg-green-100 text-green-800';
       default:
@@ -219,7 +307,7 @@ const UserProfile = ({ user: currentUser }) => {
     return (
       <PageWrapper title="My Profile" description="View and manage your profile" icon={User}>
         <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
           <p className="text-gray-600 mt-2">Loading profile...</p>
         </div>
       </PageWrapper>
@@ -274,6 +362,59 @@ const UserProfile = ({ user: currentUser }) => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Picture</CardTitle>
+              <CardDescription>Upload a profile photo for your account identity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-20 w-20 ring-1 ring-slate-200">
+                    {photoPreview ? (
+                      <AvatarImage src={photoPreview} alt={profile?.username || currentUser?.username || 'Profile photo'} />
+                    ) : null}
+                    <AvatarFallback className="bg-teal-600 text-white text-xl font-semibold">
+                      {(profile?.username || currentUser?.username || 'U').slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {photoSaving ? 'Saving photo...' : 'Visible in your app header'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      JPG, PNG, WEBP up to 2MB
+                    </p>
+                    {photoError ? (
+                      <p className="text-xs text-red-600 mt-2">{photoError}</p>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Label htmlFor="profile-photo-upload" className="cursor-pointer">
+                    <span className="inline-flex h-9 items-center rounded-md bg-teal-700 px-3 text-sm font-medium text-white hover:bg-teal-800">
+                      <Camera className="w-4 h-4 mr-2" />
+                      {photoPreview ? 'Change Photo' : 'Upload Photo'}
+                    </span>
+                    <Input
+                      id="profile-photo-upload"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={handleProfilePhotoSelected}
+                    />
+                  </Label>
+                  {photoPreview ? (
+                    <Button type="button" variant="outline" onClick={handleRemoveProfilePhoto} disabled={photoSaving}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -348,7 +489,7 @@ const UserProfile = ({ user: currentUser }) => {
           </Card>
 
           {/* Role-Specific Information */}
-          {profile.user_type === 'patient' && profile.patient_data && (
+          {isPatientAccount(profile.user_type) && profile.patient_data && (
             <Card>
               <CardHeader>
                 <CardTitle>Patient Information</CardTitle>
@@ -422,11 +563,11 @@ const UserProfile = ({ user: currentUser }) => {
             </Card>
           )}
 
-          {profile.user_type === 'provider' && profile.provider_data && (
+          {hasProviderProfile(profile) && profile.provider_data && (
             <Card>
               <CardHeader>
-                <CardTitle>Provider Information</CardTitle>
-                <CardDescription>Your professional details</CardDescription>
+                <CardTitle>Clinical / provider profile</CardTitle>
+                <CardDescription>Professional details linked to your account ({profile.user_type})</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -454,11 +595,27 @@ const UserProfile = ({ user: currentUser }) => {
                   </div>
                   <div>
                     <Label>Specialty</Label>
-                    <p className="text-gray-900 font-medium">{profile.provider_data.specialty || 'N/A'}</p>
+                    {editMode ? (
+                      <Input
+                        value={formData.specialty || ''}
+                        onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                        placeholder="e.g. Internal Medicine"
+                      />
+                    ) : (
+                      <p className="text-gray-900 font-medium">{profile.provider_data.specialty || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <Label>License Number</Label>
-                    <p className="text-gray-900 font-medium">{profile.provider_data.license_number || 'N/A'}</p>
+                    {editMode ? (
+                      <Input
+                        value={formData.license_number || ''}
+                        onChange={(e) => setFormData({ ...formData, license_number: e.target.value })}
+                        placeholder="Medical license #"
+                      />
+                    ) : (
+                      <p className="text-gray-900 font-medium">{profile.provider_data.license_number || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <Label>Phone</Label>
@@ -597,7 +754,9 @@ const UserProfile = ({ user: currentUser }) => {
                         body: JSON.stringify({ enabled: !profile.mfa_enabled })
                       });
                       if (result.success) {
-                        setProfile({ ...profile, mfa_enabled: result.mfa_enabled });
+                        setProfile((prev) => (prev ? { ...prev, mfa_enabled: result.mfa_enabled } : prev));
+                      } else {
+                        alert(result.error || 'Could not update MFA');
                       }
                     } catch (error) {
                       console.error('Error toggling MFA:', error);
@@ -742,7 +901,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
     return (
       <Card>
         <CardContent className="p-6 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
           <p className="text-gray-600 mt-2">Loading preferences...</p>
         </CardContent>
       </Card>
@@ -788,7 +947,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
           {/* Email Notifications */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <Mail className="w-5 h-5 text-blue-600" />
+              <Mail className="w-5 h-5 text-teal-700" />
               <h3 className="text-lg font-semibold">Email Notifications</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -802,7 +961,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
                     type="checkbox"
                     checked={preferences.email[type.key] || false}
                     onChange={(e) => updatePreference('email', type.key, e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-teal-700 rounded focus:ring-teal-500"
                   />
                 </div>
               ))}
@@ -815,7 +974,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
                   type="checkbox"
                   checked={preferences.email.newsletter || false}
                   onChange={(e) => updatePreference('email', 'newsletter', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-teal-700 rounded focus:ring-teal-500"
                 />
               </div>
             </div>
@@ -838,7 +997,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
                     type="checkbox"
                     checked={preferences.sms[type.key] || false}
                     onChange={(e) => updatePreference('sms', type.key, e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-teal-700 rounded focus:ring-teal-500"
                   />
                 </div>
               ))}
@@ -848,7 +1007,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
           {/* Push Notifications */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <Smartphone className="w-5 h-5 text-purple-600" />
+              <Smartphone className="w-5 h-5 text-teal-700" />
               <h3 className="text-lg font-semibold">Push Notifications</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -862,7 +1021,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
                     type="checkbox"
                     checked={preferences.push[type.key] || false}
                     onChange={(e) => updatePreference('push', type.key, e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-teal-700 rounded focus:ring-teal-500"
                   />
                 </div>
               ))}
@@ -886,7 +1045,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
                     type="checkbox"
                     checked={preferences.in_app[type.key] || false}
                     onChange={(e) => updatePreference('in_app', type.key, e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-teal-700 rounded focus:ring-teal-500"
                   />
                 </div>
               ))}
@@ -896,7 +1055,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
           {/* Quiet Hours */}
           <div className="border-t pt-6">
             <div className="flex items-center gap-2 mb-4">
-              <Moon className="w-5 h-5 text-indigo-600" />
+              <Moon className="w-5 h-5 text-teal-700" />
               <h3 className="text-lg font-semibold">Quiet Hours</h3>
             </div>
             <div className="space-y-4">
@@ -909,7 +1068,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
                   type="checkbox"
                   checked={preferences.quiet_hours.enabled || false}
                   onChange={(e) => updateQuietHours('enabled', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-teal-700 rounded focus:ring-teal-500"
                 />
               </div>
               {preferences.quiet_hours.enabled && (
@@ -946,7 +1105,7 @@ const NotificationPreferencesPanel = ({ userAccountId, saving, setSaving }) => {
                 type="checkbox"
                 checked={preferences.urgent_override !== false}
                 onChange={(e) => setPreferences({ ...preferences, urgent_override: e.target.checked })}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-teal-700 rounded focus:ring-teal-500"
               />
             </div>
           </div>

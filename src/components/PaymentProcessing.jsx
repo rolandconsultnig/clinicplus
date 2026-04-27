@@ -322,9 +322,9 @@ export default function PaymentProcessing({ patientId, invoiceId }) {
         <TabsContent value="process" className="space-y-4">
           {/* Quick Pay from Invoice */}
           {invoices.length > 0 && (
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="bg-teal-50 border-teal-200">
               <CardHeader>
-                <CardTitle className="text-blue-900">Quick Pay</CardTitle>
+                <CardTitle className="text-teal-900">Quick Pay</CardTitle>
                 <CardDescription>Pay an outstanding invoice</CardDescription>
               </CardHeader>
               <CardContent>
@@ -584,12 +584,12 @@ export default function PaymentProcessing({ patientId, invoiceId }) {
                   />
                 </div>
 
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Lock className="w-5 h-5 text-blue-600" />
-                    <h4 className="font-semibold text-blue-900">Payment Security</h4>
+                    <Lock className="w-5 h-5 text-teal-700" />
+                    <h4 className="font-semibold text-teal-900">Payment Security</h4>
                   </div>
-                  <p className="text-sm text-blue-800">
+                  <p className="text-sm text-teal-800">
                     All payment information is encrypted and processed securely. 
                     We comply with PCI DSS standards for payment security.
                   </p>
@@ -753,7 +753,7 @@ export default function PaymentProcessing({ patientId, invoiceId }) {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <CreditCard className="w-6 h-6 text-blue-600" />
+                            <CreditCard className="w-6 h-6 text-teal-700" />
                             <div>
                               <p className="font-semibold">{getCardType(method.card_last4)} •••• {method.card_last4}</p>
                               <p className="text-sm text-gray-600">Expires {method.expiry}</p>
@@ -793,7 +793,7 @@ export default function PaymentProcessing({ patientId, invoiceId }) {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <CreditCard className="w-6 h-6 text-blue-600" />
+                    <CreditCard className="w-6 h-6 text-teal-700" />
                     <div>
                       <h4 className="font-semibold">Credit/Debit Cards</h4>
                       <p className="text-sm text-gray-600">Visa, Mastercard, Amex, Discover</p>
@@ -813,7 +813,7 @@ export default function PaymentProcessing({ patientId, invoiceId }) {
                 </div>
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <Receipt className="w-6 h-6 text-purple-600" />
+                    <Receipt className="w-6 h-6 text-teal-700" />
                     <div>
                       <h4 className="font-semibold">Check</h4>
                       <p className="text-sm text-gray-600">Personal and business checks</p>
@@ -823,7 +823,7 @@ export default function PaymentProcessing({ patientId, invoiceId }) {
                 </div>
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <Building className="w-6 h-6 text-indigo-600" />
+                    <Building className="w-6 h-6 text-teal-700" />
                     <div>
                       <h4 className="font-semibold">ACH/Bank Transfer</h4>
                       <p className="text-sm text-gray-600">Direct bank transfers</p>
@@ -833,7 +833,7 @@ export default function PaymentProcessing({ patientId, invoiceId }) {
                 </div>
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <CheckCircle className="w-6 h-6 text-indigo-600" />
+                    <CheckCircle className="w-6 h-6 text-teal-700" />
                     <div>
                       <h4 className="font-semibold">Insurance</h4>
                       <p className="text-sm text-gray-600">Insurance payments</p>

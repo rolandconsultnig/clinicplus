@@ -1,6 +1,8 @@
 """
 Micro-Insurance Platform API Routes
 """
+import os
+
 from flask import Blueprint, request, jsonify
 from src.auth.jwt_manager import token_required, role_required
 from src.auth.tenant_middleware import tenant_isolation_required
@@ -11,6 +13,8 @@ from src.models.insurance import (
 )
 from src.models.clinical import ClinicalEncounter
 from src.models.billing import Charge
+from src.models.patient import Patient
+from src.models.insurance_company import InsuranceCompany
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import uuid
@@ -41,6 +45,51 @@ def get_insurance_plans():
             'plans': [p.to_dict() for p in plans]
         }), 200
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@insurance_bp.route('/eligibility-check', methods=['POST'])
+@token_required
+@role_required(['physician', 'nurse', 'admin', 'receptionist', 'billing'])
+def eligibility_check():
+    """
+    Eligibility / benefits check placeholder.
+    Wire ELIGIBILITY_API_URL + key to a clearinghouse later; returns structured demo when unset.
+    """
+    try:
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        member_id = data.get('member_id') or data.get('subscriber_id')
+        payer_id = data.get('payer_id') or data.get('insurance_company_id')
+
+        patient = Patient.query.get(patient_id) if patient_id else None
+        payer = InsuranceCompany.query.get(int(payer_id)) if payer_id else None
+
+        external_url = os.environ.get('ELIGIBILITY_API_URL', '').strip()
+        if external_url:
+            return jsonify({
+                'success': False,
+                'error': 'External eligibility API is configured but not implemented in this build',
+                'hint': 'Integrate your clearinghouse client and map the response here.',
+            }), 501
+
+        return jsonify({
+            'success': True,
+            'source': 'demo_stub',
+            'eligible': True,
+            'patient_id': patient.id if patient else patient_id,
+            'member_id': member_id or (patient.universal_patient_id if patient else None),
+            'payer': {'id': payer.id, 'name': payer.company_name} if payer else None,
+            'coverage': {
+                'plan_name': 'Demo Plan',
+                'status': 'active',
+                'copay': 25.0,
+                'deductible_remaining': 0.0,
+                'coinsurance_percent': 20,
+            },
+            'message': 'Demo eligibility — replace with live payer response when integrated.',
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

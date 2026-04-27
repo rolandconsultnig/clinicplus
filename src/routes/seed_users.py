@@ -41,7 +41,7 @@ def seed_users():
             db.session.flush()
         
         # Create roles if they don't exist
-        roles_data = ['admin', 'physician', 'pharmacist', 'nurse', 'receptionist']
+        roles_data = ['admin', 'physician', 'pharmacist', 'nurse', 'receptionist', 'radiographer']
         
         roles = {}
         for role_name in roles_data:
@@ -87,10 +87,17 @@ def seed_users():
             },
             {
                 'username': 'receptionist',
-                'password': 'recept123',
+                'password': 'receptionist123',
                 'email': 'receptionist@clinic.com',
-                'user_type': 'receptionist',
+                'user_type': 'Receptionist',
                 'role': 'receptionist'
+            },
+            {
+                'username': 'radiographer',
+                'password': 'radiographer123',
+                'email': 'radiographer@clinic.com',
+                'user_type': 'radiographer',
+                'role': 'radiographer'
             }
         ]
         
@@ -101,6 +108,7 @@ def seed_users():
                 username=user_data['username'],
                 email=user_data['email'],
                 user_type=user_data['user_type'],
+                facility_id=facility.id,
                 is_active=True,
                 is_verified=True,
                 created_at=datetime.datetime.utcnow(),
@@ -170,6 +178,113 @@ def list_users():
             'error': str(e)
         }), 500
 
+@seed_bp.route('/create-elvis-admin', methods=['POST'])
+def create_elvis_admin():
+    """Create elvis_admin user for elvis facility"""
+    try:
+        # Find or create elvis facility
+        elvis_facility = Facility.query.filter_by(facility_id='elvis').first()
+        if not elvis_facility:
+            # Create elvis facility
+            elvis_facility = Facility(
+                facility_id='elvis',
+                facility_name='Elvis Clinic',
+                facility_type='Clinic',
+                city='City',
+                state='State',
+                country='Nigeria',
+                phone='123-456-7890',
+                email='elvis@clinicplus.org',
+                is_active=True
+            )
+            db.session.add(elvis_facility)
+            db.session.flush()
+        
+        # Check if user already exists
+        existing_user = UserAccount.query.filter_by(username='elvis_admin').first()
+        if existing_user:
+            # Update existing user
+            existing_user.set_password('demo123')
+            existing_user.facility_id = elvis_facility.id
+            existing_user.is_active = True
+            existing_user.is_verified = True
+            existing_user.failed_login_attempts = 0
+            existing_user.account_locked_until = None
+            user = existing_user
+            action = 'updated'
+        else:
+            # Create new user
+            user = UserAccount(
+                username='elvis_admin',
+                email='elvis_admin@clinicplus.org',
+                user_type='admin',
+                facility_id=elvis_facility.id,
+                is_active=True,
+                is_verified=True,
+                created_at=datetime.datetime.utcnow(),
+                failed_login_attempts=0
+            )
+            user.set_password('demo123')
+            db.session.add(user)
+            db.session.flush()
+            action = 'created'
+        
+        # Get or create Facility Administrator role
+        admin_role = Role.query.filter_by(role_name='Facility Administrator').first()
+        if not admin_role:
+            admin_role = Role.query.filter_by(role_name='System Administrator').first()
+        if not admin_role:
+            admin_role = Role.query.filter_by(role_name='admin').first()
+        if not admin_role:
+            # Create Facility Administrator role if it doesn't exist
+            admin_role = Role(
+                role_name='Facility Administrator',
+                role_description='Facility-level administrator',
+                is_active=True
+            )
+            db.session.add(admin_role)
+            db.session.flush()
+        
+        # Assign role to user for elvis facility
+        existing_user_role = UserRole.query.filter_by(
+            user_account_id=user.id,
+            facility_id=elvis_facility.id
+        ).first()
+        
+        if not existing_user_role:
+            user_role = UserRole(
+                user_account_id=user.id,
+                role_id=admin_role.id,
+                facility_id=elvis_facility.id,
+                is_active=True,
+                assigned_at=datetime.datetime.utcnow()
+            )
+            db.session.add(user_role)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'elvis_admin user {action} successfully',
+            'user': {
+                'username': 'elvis_admin',
+                'password': 'demo123',
+                'email': user.email,
+                'user_type': user.user_type,
+                'facility_id': elvis_facility.id,
+                'facility_name': elvis_facility.facility_name,
+                'role': admin_role.role_name
+            },
+            'note': 'Use these credentials to login at elvis.localhost:4305'
+        }), 201 if action == 'created' else 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': f'Failed to create elvis_admin: {str(e)}'
+        }), 500
+
 @seed_bp.route('/reset-passwords', methods=['POST'])
 def reset_passwords():
     """Reset passwords for existing users to known test passwords"""
@@ -181,7 +296,9 @@ def reset_passwords():
             'test_user': 'test123',
             'patient_demo': 'patient123',
             'provider_demo': 'provider123',
-            'receptionist': 'recept123'
+            'receptionist': 'receptionist123',
+            'radiographer': 'radiographer123',
+            'elvis_admin': 'demo123'
         }
         
         updated_users = []
@@ -212,3 +329,4 @@ def reset_passwords():
             'success': False,
             'error': str(e)
         }), 500
+

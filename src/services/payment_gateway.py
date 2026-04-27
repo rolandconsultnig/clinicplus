@@ -290,6 +290,94 @@ class PaymentGatewayService:
         except Exception as e:
             return False, {'error': f'Payment verification error: {str(e)}'}
 
+    def create_refund(
+        self,
+        gateway: str,
+        reference: str,
+        amount: Optional[Decimal] = None,
+        *,
+        payment_intent_id: Optional[str] = None,
+    ) -> Tuple[bool, Dict]:
+        """Request a refund at the gateway. For Stripe, pass payment_intent_id when reference is not the PI id."""
+        g = (gateway or '').lower()
+        if g == 'paystack':
+            return self._refund_paystack(reference, amount)
+        if g == 'stripe':
+            pi = payment_intent_id or reference
+            return self._refund_stripe(pi, amount)
+        if g == 'flutterwave':
+            return self._refund_flutterwave(reference, amount)
+        return False, {'error': f'Unsupported gateway for refund: {gateway}'}
+
+    def _refund_paystack(self, transaction_reference: str, amount: Optional[Decimal]) -> Tuple[bool, Dict]:
+        try:
+            if not self.paystack_secret_key:
+                return False, {'error': 'PAYSTACK_SECRET_KEY is not configured'}
+            url = f'{self.paystack_base_url}/refund'
+            headers = {
+                'Authorization': f'Bearer {self.paystack_secret_key}',
+                'Content-Type': 'application/json',
+            }
+            payload = {'transaction': transaction_reference}
+            if amount is not None:
+                payload['amount'] = int(amount * 100)
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            if data.get('status'):
+                return True, {'gateway_response': data.get('data', {})}
+            return False, {'error': data.get('message', 'Refund failed')}
+        except requests.exceptions.RequestException as e:
+            return False, {'error': f'Paystack refund error: {str(e)}'}
+        except Exception as e:
+            return False, {'error': str(e)}
+
+    def _refund_stripe(self, payment_intent_id: str, amount: Optional[Decimal]) -> Tuple[bool, Dict]:
+        try:
+            if not self.stripe_secret_key:
+                return False, {'error': 'STRIPE_SECRET_KEY is not configured'}
+            url = f'{self.stripe_base_url}/refunds'
+            headers = {
+                'Authorization': f'Bearer {self.stripe_secret_key}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+            payload = {'payment_intent': payment_intent_id}
+            if amount is not None:
+                payload['amount'] = int(amount * 100)
+            response = requests.post(url, data=payload, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            if data.get('status') in ('succeeded', 'pending'):
+                return True, {'refund_id': data.get('id'), 'gateway_response': data}
+            return False, {'error': data.get('failure_reason') or 'Refund not completed'}
+        except requests.exceptions.RequestException as e:
+            return False, {'error': f'Stripe refund error: {str(e)}'}
+        except Exception as e:
+            return False, {'error': str(e)}
+
+    def _refund_flutterwave(self, transaction_id: str, amount: Optional[Decimal]) -> Tuple[bool, Dict]:
+        try:
+            if not self.flutterwave_secret_key:
+                return False, {'error': 'FLUTTERWAVE_SECRET_KEY is not configured'}
+            url = f'{self.flutterwave_base_url}/transactions/{transaction_id}/refund'
+            headers = {
+                'Authorization': f'Bearer {self.flutterwave_secret_key}',
+                'Content-Type': 'application/json',
+            }
+            body = {}
+            if amount is not None:
+                body['amount'] = float(amount)
+            response = requests.post(url, json=body or None, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            if data.get('status') == 'success':
+                return True, {'gateway_response': data.get('data', {})}
+            return False, {'error': data.get('message', 'Refund failed')}
+        except requests.exceptions.RequestException as e:
+            return False, {'error': f'Flutterwave refund error: {str(e)}'}
+        except Exception as e:
+            return False, {'error': str(e)}
+
 # Global instance
 payment_gateway_service = PaymentGatewayService()
 

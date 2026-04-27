@@ -25,16 +25,25 @@ export default function HL7LabIntegration({ patientId }) {
   const [showMessageViewer, setShowMessageViewer] = useState(false)
 
   useEffect(() => {
-    loadOrders()
-    loadResults()
+    if (patientId) {
+      loadOrders()
+      loadResults()
+    } else {
+      setOrders([])
+      setResults([])
+    }
     loadHL7Messages()
   }, [patientId])
 
   const loadOrders = async () => {
+    if (!patientId) return
     try {
-      const response = await apiService.request(`/labs/orders?patient_id=${patientId}`)
+      const response = await apiService.request('/labs/pending-orders')
       if (response.success) {
-        setOrders(response.orders || [])
+        const patientScopedOrders = (response.orders || []).filter(
+          (order) => `${order.patient_id || ''}` === `${patientId}`
+        )
+        setOrders(patientScopedOrders)
       }
     } catch (error) {
       console.error('Error loading orders:', error)
@@ -42,6 +51,7 @@ export default function HL7LabIntegration({ patientId }) {
   }
 
   const loadResults = async () => {
+    if (!patientId) return
     try {
       const response = await apiService.request(`/labs/results?patient_id=${patientId}`)
       if (response.success) {
@@ -53,26 +63,17 @@ export default function HL7LabIntegration({ patientId }) {
   }
 
   const loadHL7Messages = async () => {
-    try {
-      const response = await apiService.request('/labs/hl7/messages')
-      if (response.success) {
-        setHl7Messages(response.messages || [])
-      }
-    } catch (error) {
-      console.error('Error loading HL7 messages:', error)
-    }
+    // No dedicated message-list endpoint exists yet; keep this pane stable.
+    setHl7Messages([])
   }
 
   const sendHL7Order = async (orderId) => {
     setLoading(true)
     try {
-      const response = await apiService.request(`/labs/hl7/send-order/${orderId}`, { 
-        method: 'POST' 
-      })
+      const response = await apiService.request(`/labs/hl7/generate-order/${orderId}`)
       if (response.success) {
-        alert('HL7 order sent successfully')
+        alert('HL7 order payload generated successfully')
         loadOrders()
-        loadHL7Messages()
       }
     } catch (error) {
       alert('Failed to send order: ' + (error.message || 'Unknown error'))
@@ -100,11 +101,19 @@ export default function HL7LabIntegration({ patientId }) {
     }
   }
 
-  const parseHL7Message = async (messageId) => {
+  const parseHL7Message = async () => {
+    if (!selectedMessage?.message_text && !selectedMessage?.raw_message) {
+      return
+    }
     try {
-      const response = await apiService.request(`/labs/hl7/messages/${messageId}/parse`)
+      const response = await apiService.request('/hl7/parse', {
+        method: 'POST',
+        body: JSON.stringify({
+          message: selectedMessage.message_text || selectedMessage.raw_message
+        })
+      })
       if (response.success) {
-        setParsedMessage(response.parsed)
+        setParsedMessage(response.parsed_message)
         setShowMessageViewer(true)
       }
     } catch (error) {
@@ -117,7 +126,7 @@ export default function HL7LabIntegration({ patientId }) {
     switch (status?.toLowerCase()) {
       case 'completed': return 'text-green-600 bg-green-50'
       case 'pending': return 'text-yellow-600 bg-yellow-50'
-      case 'in_progress': return 'text-blue-600 bg-blue-50'
+      case 'in_progress': return 'text-teal-700 bg-teal-50'
       case 'cancelled': return 'text-red-600 bg-red-50'
       default: return 'text-gray-600 bg-gray-50'
     }
@@ -125,7 +134,7 @@ export default function HL7LabIntegration({ patientId }) {
 
   const getMessageTypeColor = (type) => {
     switch (type?.toLowerCase()) {
-      case 'orm': return 'bg-blue-100 text-blue-800'
+      case 'orm': return 'bg-teal-100 text-teal-800'
       case 'oru': return 'bg-green-100 text-green-800'
       case 'ack': return 'bg-gray-100 text-gray-800'
       default: return 'bg-gray-100 text-gray-800'
@@ -145,7 +154,7 @@ export default function HL7LabIntegration({ patientId }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <TestTube className="w-8 h-8 text-blue-600" />
+            <TestTube className="w-8 h-8 text-teal-700" />
             HL7 Lab Integration
           </h1>
           <p className="text-gray-600 mt-1">Manage lab orders and results via HL7</p>

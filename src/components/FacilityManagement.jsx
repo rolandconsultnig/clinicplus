@@ -27,6 +27,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { COUNTRIES, DEFAULT_COUNTRY } from '../utils/countries';
+import { getSubdivisionsForCountry } from '../utils/countrySubdivisions';
 
 const FacilityManagement = () => {
   const [facilities, setFacilities] = useState([]);
@@ -241,6 +242,8 @@ const FacilityManagement = () => {
     facility.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const facilityStateOptions = getSubdivisionsForCountry(formData.country)
+
   return (
     <PageWrapper
       title="Facility Management"
@@ -262,7 +265,7 @@ const FacilityManagement = () => {
         <TabsContent value="facilities" className="space-y-6">
           {/* Add Facility Form Modal */}
           {showAddForm && (
-            <Card className="border-2 border-blue-500 shadow-lg">
+            <Card className="border-2 border-teal-500 shadow-lg">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Add New Facility</CardTitle>
@@ -342,6 +345,23 @@ const FacilityManagement = () => {
                           placeholder="Suite, unit, etc."
                         />
                       </div>
+                      <div>
+                        <Label htmlFor="country">Country</Label>
+                        <select
+                          id="country"
+                          value={formData.country}
+                          onChange={(e) =>
+                            setFormData({ ...formData, country: e.target.value, state: '' })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                          {COUNTRIES.map((country) => (
+                            <option key={country.value} value={country.value}>
+                              {country.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <Label htmlFor="city">City</Label>
@@ -353,40 +373,41 @@ const FacilityManagement = () => {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="state">State</Label>
-                          <Input
-                            id="state"
-                            value={formData.state}
-                            onChange={(e) => setFormData({...formData, state: e.target.value})}
-                            placeholder="State"
-                            maxLength="2"
-                          />
+                          <Label htmlFor="state">State / Province</Label>
+                          {facilityStateOptions.length > 0 ? (
+                            <select
+                              id="state"
+                              value={formData.state}
+                              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            >
+                              <option value="">Select…</option>
+                              {facilityStateOptions.map((name) => (
+                                <option key={name} value={name}>
+                                  {name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Input
+                              id="state"
+                              value={formData.state}
+                              onChange={(e) => setFormData({...formData, state: e.target.value})}
+                              placeholder="State or province"
+                              maxLength={50}
+                            />
+                          )}
                         </div>
                         <div>
-                          <Label htmlFor="zip_code">ZIP Code</Label>
+                          <Label htmlFor="zip_code">ZIP / Postal code</Label>
                           <Input
                             id="zip_code"
                             value={formData.zip_code}
                             onChange={(e) => setFormData({...formData, zip_code: e.target.value})}
-                            placeholder="ZIP"
+                            placeholder="Postal code"
                             maxLength="10"
                           />
                         </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="country">Country</Label>
-                        <select
-                          id="country"
-                          value={formData.country}
-                          onChange={(e) => setFormData({...formData, country: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        >
-                          {COUNTRIES.map((country) => (
-                            <option key={country.value} value={country.value}>
-                              {country.label}
-                            </option>
-                          ))}
-                        </select>
                       </div>
                     </div>
                   </div>
@@ -564,7 +585,7 @@ const FacilityManagement = () => {
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
                   <p className="text-gray-600 mt-2">Loading facilities...</p>
                 </div>
               ) : filteredFacilities.length === 0 ? (
@@ -626,21 +647,21 @@ const FacilityManagement = () => {
                                 )}
                                 <div className="flex flex-wrap items-center gap-4">
                                   {facility.phone && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg">
-                                      <Phone className="w-4 h-4 text-blue-600" />
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 rounded-lg">
+                                      <Phone className="w-4 h-4 text-teal-700" />
                                       <span className="font-medium text-gray-900">{facility.phone}</span>
                                     </div>
                                   )}
                                   {facility.email && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg">
-                                      <Mail className="w-4 h-4 text-purple-600" />
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 rounded-lg">
+                                      <Mail className="w-4 h-4 text-teal-700" />
                                       <span className="font-medium text-gray-900">{facility.email}</span>
                                     </div>
                                   )}
                                   {facility.website && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg">
-                                      <Globe className="w-4 h-4 text-indigo-600" />
-                                      <a href={facility.website} target="_blank" rel="noopener noreferrer" className="font-medium text-indigo-600 hover:underline">
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 rounded-lg">
+                                      <Globe className="w-4 h-4 text-teal-700" />
+                                      <a href={facility.website} target="_blank" rel="noopener noreferrer" className="font-medium text-teal-700 hover:underline">
                                         Visit Website
                                       </a>
                                     </div>
@@ -676,7 +697,7 @@ const FacilityManagement = () => {
         <TabsContent value="providers" className="space-y-6">
           {/* Add Provider Form Modal */}
           {showAddProviderForm && (
-            <Card className="border-2 border-blue-500 shadow-lg">
+            <Card className="border-2 border-teal-500 shadow-lg">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Add New Provider</CardTitle>
@@ -1014,7 +1035,7 @@ const FacilityManagement = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white font-semibold">
+                          <div className="w-10 h-10 bg-gradient-to-br from-teal-600 to-teal-800 rounded-full flex items-center justify-center text-white font-semibold">
                             {provider.first_name?.charAt(0)}{provider.last_name?.charAt(0)}
                           </div>
                           <div>

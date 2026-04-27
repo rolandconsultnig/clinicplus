@@ -64,24 +64,49 @@ def create_appointment():
     try:
         data = request.get_json()
         
+        # Get user roles
+        user_roles = [role['role_name'] for role in request.token_payload.get('roles', [])]
+        is_patient = 'Patient' in user_roles or 'patient' in user_roles
+        
         # Validate required fields
-        required_fields = ['patient_id', 'provider_id', 'facility_id', 'appointment_date', 'appointment_time']
+        required_fields = ['patient_id', 'facility_id', 'appointment_date', 'appointment_time']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'{field} is required'}), 400
+        
+        # Patients can only book appointments for themselves
+        if is_patient:
+            from src.models.auth import UserAccount
+            user_account = UserAccount.query.get(request.current_user.id)
+            if user_account and user_account.patient_id:
+                if data['patient_id'] != user_account.patient_id:
+                    return jsonify({'error': 'Patients can only book appointments for themselves'}), 403
+            else:
+                return jsonify({'error': 'Patient record not found for your account'}), 400
+        
+        # Provider ID is optional for patient bookings (can be assigned later)
+        provider_id = data.get('provider_id')
+        if not provider_id and not is_patient:
+            return jsonify({'error': 'provider_id is required for staff bookings'}), 400
+        
+        # Handle time format - can be HH:MM or HH:MM:SS
+        appointment_time_str = data['appointment_time']
+        if len(appointment_time_str.split(':')) == 2:
+            appointment_time_str += ':00'
         
         # Create appointment
         appointment = Appointment(
             appointment_id=f"APT-{uuid.uuid4().hex[:12].upper()}",
             patient_id=data['patient_id'],
-            provider_id=data['provider_id'],
+            provider_id=provider_id,
             facility_id=data['facility_id'],
             appointment_type=data.get('appointment_type', 'consultation'),
             appointment_date=date.fromisoformat(data['appointment_date']),
-            appointment_time=time.fromisoformat(data['appointment_time']),
+            appointment_time=time.fromisoformat(appointment_time_str),
             duration_minutes=data.get('duration_minutes', 30),
             priority=data.get('priority', 'routine'),
             reason_for_visit=data.get('reason_for_visit'),
+            status=data.get('status', 'requested' if is_patient else 'scheduled'),
             is_recurring=data.get('is_recurring', False),
             recurrence_pattern=data.get('recurrence_pattern'),
             created_by=request.current_user.id
@@ -139,12 +164,18 @@ def update_appointment(appointment_id):
     try:
         appointment = Appointment.query.get_or_404(appointment_id)
         data = request.get_json()
-        
+        schedule_changed = False
+
         # Update fields
         if 'appointment_date' in data:
             appointment.appointment_date = date.fromisoformat(data['appointment_date'])
+            schedule_changed = True
         if 'appointment_time' in data:
-            appointment.appointment_time = time.fromisoformat(data['appointment_time'])
+            tstr = data['appointment_time']
+            if len(tstr.split(':')) == 2:
+                tstr = f'{tstr}:00'
+            appointment.appointment_time = time.fromisoformat(tstr)
+            schedule_changed = True
         if 'status' in data:
             appointment.status = data['status']
             if data['status'] == 'checked_in':
@@ -154,7 +185,19 @@ def update_appointment(appointment_id):
                 appointment.cancelled_at = datetime.utcnow()
                 appointment.cancelled_by = request.current_user.id
                 appointment.cancellation_reason = data.get('cancellation_reason')
-        
+
+        if schedule_changed and data.get('notify_patient', True) and appointment.status not in ('cancelled',):
+            try:
+                patient = Patient.query.get(appointment.patient_id)
+                if patient:
+                    reminder_results = notification_service.send_appointment_reminder(appointment, patient)
+                    appointment.reminder_sent_sms = reminder_results.get('sms', {}).get('success', False)
+                    appointment.reminder_sent_email = reminder_results.get('email', {}).get('success', False)
+                    if appointment.reminder_sent_sms or appointment.reminder_sent_email:
+                        appointment.reminder_sent_at = datetime.utcnow()
+            except Exception as e:
+                print(f"Reminder resend after reschedule failed: {e}")
+
         db.session.commit()
         
         return jsonify({
@@ -455,4 +498,32 @@ def get_available_slots():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@scheduling_bp.route('/appointments/<int:appt_id>/recurrence/expand', methods=['POST'])
+@token_required
+@role_required(['physician', 'nurse', 'admin', 'scheduler', 'Nurse', 'Scheduler'])
+def expand_recurrence_series(appt_id):
+    """
+    For recurring templates: return planned future occurrence dates (does not create rows until product rules are set).
+    """
+    a = Appointment.query.get_or_404(appt_id)
+    if not a.is_recurring and not a.recurrence_pattern:
+        return jsonify({
+            'message': 'Not marked recurring; set is_recurring and recurrence_pattern first',
+        }), 400
+    data = request.get_json() or {}
+    n = int(data.get('count', 6))
+    out = []
+    d = a.appointment_date
+    pat = (a.recurrence_pattern or 'weekly').lower()
+    for i in range(n):
+        out.append(d.isoformat() if hasattr(d, 'isoformat') else str(d))
+        if pat in ('daily', 'day'):
+            d = d + timedelta(days=1)
+        elif pat in ('weekly', 'week'):
+            d = d + timedelta(days=7)
+        else:
+            d = d + timedelta(days=30)
+    return jsonify({'success': True, 'source_appointment_id': a.id, 'projected_dates': out}), 200
 

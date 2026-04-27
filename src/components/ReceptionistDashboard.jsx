@@ -39,6 +39,7 @@ import {
 import { apiService } from '../services/apiService.js'
 import { formatCurrencySimple } from '../utils/currency'
 import { COUNTRIES, DEFAULT_COUNTRY } from '../utils/countries'
+import { getSubdivisionsForCountry } from '../utils/countrySubdivisions'
 
 export default function ReceptionistDashboard() {
   const { selectedPatient, setSelectedPatient, addNotification, broadcastEvent } = useAppContext()
@@ -100,19 +101,19 @@ export default function ReceptionistDashboard() {
 
       {/* Enhanced Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        <Card hover className="group border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100/50 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-200/20 rounded-full -mr-16 -mt-16"></div>
+        <Card hover className="group border-0 shadow-lg bg-gradient-to-br from-teal-50 to-slate-100/50 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-200/20 rounded-full -mr-16 -mt-16"></div>
           <CardContent className="p-6 relative">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Today's Registrations</p>
-                <p className="text-4xl font-bold text-blue-700 mb-1">{stats.todayRegistrations}</p>
-                <div className="flex items-center gap-1 text-xs text-blue-600">
+                <p className="text-xs font-semibold text-teal-800 uppercase tracking-wider mb-2">Today's Registrations</p>
+                <p className="text-4xl font-bold text-teal-800 mb-1">{stats.todayRegistrations}</p>
+                <div className="flex items-center gap-1 text-xs text-teal-700">
                   <TrendingUp className="w-3 h-3" />
                   <span>Active</span>
                 </div>
               </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 transform group-hover:scale-110 transition-transform">
+              <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-teal-900/20 transform group-hover:scale-110 transition-transform">
                 <UserPlus className="w-7 h-7 text-white" />
               </div>
             </div>
@@ -157,19 +158,19 @@ export default function ReceptionistDashboard() {
           </CardContent>
         </Card>
 
-        <Card hover className="group border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100/50 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-200/20 rounded-full -mr-16 -mt-16"></div>
+        <Card hover className="group border-0 shadow-lg bg-gradient-to-br from-teal-50 to-slate-100/50 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-200/20 rounded-full -mr-16 -mt-16"></div>
           <CardContent className="p-6 relative">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wider mb-2">Avg Wait Time</p>
-                <p className="text-4xl font-bold text-purple-700 mb-1">{stats.avgWaitTime} min</p>
-                <div className="flex items-center gap-1 text-xs text-purple-600">
+                <p className="text-xs font-semibold text-teal-800 uppercase tracking-wider mb-2">Avg Wait Time</p>
+                <p className="text-4xl font-bold text-teal-800 mb-1">{stats.avgWaitTime} min</p>
+                <div className="flex items-center gap-1 text-xs text-teal-700">
                   <Clock className="w-3 h-3" />
                   <span>Average</span>
                 </div>
               </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30 transform group-hover:scale-110 transition-transform">
+              <div className="w-14 h-14 bg-gradient-to-br from-teal-600 to-teal-700 rounded-xl flex items-center justify-center shadow-lg shadow-teal-900/20 transform group-hover:scale-110 transition-transform">
                 <Clock className="w-7 h-7 text-white" />
               </div>
             </div>
@@ -277,8 +278,8 @@ function OverviewPanel() {
               todayAppointments.map((apt, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="w-6 h-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
+                      <User className="w-6 h-6 text-teal-700" />
                     </div>
                     <div>
                       <p className="font-semibold">{apt.patient_name}</p>
@@ -367,10 +368,16 @@ function NewPatientRegistration({ onSuccess }) {
   const [insuranceVerifying, setInsuranceVerifying] = useState(false)
   const [insuranceStatus, setInsuranceStatus] = useState(null)
 
+  const patientStateOptions = getSubdivisionsForCountry(formData.country)
+
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-    
+    if (name === 'country') {
+      setFormData((prev) => ({ ...prev, country: value, state: '' }))
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }))
+    }
+
     // Clear insurance status when policy number changes
     if (name === 'insurance_policy_number' || name === 'insurance_provider') {
       setInsuranceStatus(null)
@@ -496,7 +503,7 @@ function NewPatientRegistration({ onSuccess }) {
 
   return (
     <Card className="border-0 shadow-xl">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-xl">
+      <CardHeader className="bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-t-xl">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
             <UserPlus className="w-6 h-6" />
@@ -526,9 +533,9 @@ function NewPatientRegistration({ onSuccess }) {
           )}
 
           {/* Enhanced Photo Upload Section */}
-          <div className="p-6 bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-xl border border-gray-200">
+          <div className="p-6 bg-gradient-to-br from-gray-50 to-teal-50/40 rounded-xl border border-gray-200">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
                 <Upload className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -538,7 +545,7 @@ function NewPatientRegistration({ onSuccess }) {
             </div>
             <div className="flex items-center space-x-4">
               {photoPreview && (
-                <div className="w-32 h-32 rounded-xl overflow-hidden border-2 border-blue-300 shadow-md">
+                <div className="w-32 h-32 rounded-xl overflow-hidden border-2 border-teal-300 shadow-md">
                   <img src={photoPreview} alt="Patient preview" className="w-full h-full object-cover" />
                 </div>
               )}
@@ -560,9 +567,9 @@ function NewPatientRegistration({ onSuccess }) {
           </div>
 
           {/* Enhanced Demographics Section */}
-          <div className="p-6 bg-gradient-to-br from-gray-50 to-indigo-50/30 rounded-xl border border-gray-200">
+          <div className="p-6 bg-gradient-to-br from-gray-50 to-slate-100/30 rounded-xl border border-gray-200">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-teal-700 rounded-lg flex items-center justify-center">
                 <User className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -636,7 +643,7 @@ function NewPatientRegistration({ onSuccess }) {
                   name="gender"
                   value={formData.gender}
                   onChange={handleChange}
-                  className="w-full h-11 px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none enhanced"
+                  className="w-full h-11 px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all appearance-none enhanced"
                   required
                 >
                   <option value="">Select Gender</option>
@@ -721,9 +728,9 @@ function NewPatientRegistration({ onSuccess }) {
           </div>
 
           {/* Enhanced Address Section */}
-          <div className="p-6 bg-gradient-to-br from-gray-50 to-purple-50/30 rounded-xl border border-gray-200">
+          <div className="p-6 bg-gradient-to-br from-gray-50 to-teal-50/35 rounded-xl border border-gray-200">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-600 to-teal-800 rounded-lg flex items-center justify-center">
                 <MapPin className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -750,34 +757,7 @@ function NewPatientRegistration({ onSuccess }) {
                   onChange={handleChange}
                 />
               </div>
-              <div>
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <Label htmlFor="state">State</Label>
-                <Input
-                  id="state"
-                  name="state"
-                  value={formData.state}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <Label htmlFor="zip_code">ZIP Code</Label>
-                <Input
-                  id="zip_code"
-                  name="zip_code"
-                  value={formData.zip_code}
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
+              <div className="md:col-span-2">
                 <Label htmlFor="country">Country</Label>
                 <select
                   id="country"
@@ -792,6 +772,51 @@ function NewPatientRegistration({ onSuccess }) {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="state">State / Province</Label>
+                {patientStateOptions.length > 0 ? (
+                  <select
+                    id="state"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">Select…</option>
+                    {patientStateOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    id="state"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    placeholder="State or province"
+                  />
+                )}
+              </div>
+              <div>
+                <Label htmlFor="zip_code">ZIP / Postal code</Label>
+                <Input
+                  id="zip_code"
+                  name="zip_code"
+                  value={formData.zip_code}
+                  onChange={handleChange}
+                />
               </div>
             </div>
           </div>
@@ -842,7 +867,7 @@ function NewPatientRegistration({ onSuccess }) {
           {/* Enhanced Insurance Section */}
           <div className="p-6 bg-gradient-to-br from-gray-50 to-cyan-50/30 rounded-xl border border-gray-200">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -1007,7 +1032,7 @@ function NewPatientRegistration({ onSuccess }) {
             <Button 
               type="submit" 
               disabled={loading}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 min-w-[180px]"
+              className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white shadow-lg shadow-teal-900/20 min-w-[180px]"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -1139,7 +1164,7 @@ function PatientSearchPanel() {
       {/* Enhanced Search Results */}
       {searchResults.length > 0 && (
         <Card className="border-0 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+          <CardHeader className="bg-gradient-to-r from-teal-50 to-slate-100 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl">Search Results</CardTitle>
               <Badge variant="default" className="text-sm px-3 py-1">
@@ -1152,26 +1177,26 @@ function PatientSearchPanel() {
               {searchResults.map((patient) => (
                 <div
                   key={patient.id}
-                  className="group flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md cursor-pointer transition-all duration-200"
+                  className="group flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-teal-300 hover:shadow-md cursor-pointer transition-all duration-200"
                   onClick={() => setSelectedPatient(patient)}
                 >
                   <div className="flex items-center space-x-4 flex-1">
                     <div className="relative">
-                      <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+                      <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
                         <User className="w-7 h-7 text-white" />
                       </div>
                       <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="font-bold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
+                        <p className="font-bold text-lg text-gray-900 group-hover:text-teal-700 transition-colors">
                           {patient.first_name} {patient.last_name}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <span className="font-medium">MRN:</span>
-                          <code className="px-2 py-0.5 bg-gray-100 rounded text-blue-600 font-mono text-xs">
+                          <code className="px-2 py-0.5 bg-gray-100 rounded text-teal-700 font-mono text-xs">
                             {patient.universal_patient_id}
                           </code>
                         </span>
@@ -1221,7 +1246,7 @@ function PatientSearchPanel() {
 function PatientDetailsCard({ patient, onClose }) {
   return (
     <Card className="border-0 shadow-2xl animate-in fade-in slide-in-from-bottom-4">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-xl">
+      <CardHeader className="bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -1250,7 +1275,7 @@ function PatientDetailsCard({ patient, onClose }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-3">
-              <User className="w-5 h-5 text-blue-600" />
+              <User className="w-5 h-5 text-teal-700" />
               <h4 className="font-bold text-lg text-gray-900">Demographics</h4>
             </div>
             <div className="space-y-3 pl-7">
@@ -1260,7 +1285,7 @@ function PatientDetailsCard({ patient, onClose }) {
               </div>
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Medical Record Number</p>
-                <code className="text-blue-600 font-mono font-semibold">{patient.universal_patient_id}</code>
+                <code className="text-teal-700 font-mono font-semibold">{patient.universal_patient_id}</code>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Date of Birth</p>
@@ -1301,7 +1326,7 @@ function PatientDetailsCard({ patient, onClose }) {
           
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-3">
-              <Shield className="w-5 h-5 text-purple-600" />
+              <Shield className="w-5 h-5 text-teal-700" />
               <h4 className="font-bold text-lg text-gray-900">Insurance</h4>
             </div>
             <div className="space-y-3 pl-7">
@@ -1442,7 +1467,7 @@ function AppointmentsPanel() {
                 >
                   <div className="flex items-center space-x-4">
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600">{apt.time}</p>
+                      <p className="text-2xl font-bold text-teal-700">{apt.time}</p>
                       <p className="text-xs text-gray-600">{apt.duration} min</p>
                     </div>
                     <div>
@@ -1717,7 +1742,7 @@ function QueueManagementPanel() {
                 >
                   <div className="flex items-center space-x-4">
                     <div className="text-center">
-                      <p className="text-3xl font-bold text-blue-600">{entry.token}</p>
+                      <p className="text-3xl font-bold text-teal-700">{entry.token}</p>
                       <p className="text-xs text-gray-600">Token</p>
                     </div>
                     <div>
@@ -1840,17 +1865,17 @@ function ReportsPanel() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="p-4 bg-teal-50 rounded-lg">
                 <p className="text-sm text-gray-600">Total Patients</p>
-                <p className="text-2xl font-bold text-blue-600">{reportData.total_patients || 0}</p>
+                <p className="text-2xl font-bold text-teal-700">{reportData.total_patients || 0}</p>
               </div>
               <div className="p-4 bg-green-50 rounded-lg">
                 <p className="text-sm text-gray-600">Total Collections</p>
                 <p className="text-2xl font-bold text-green-600">${reportData.total_collections || 0}</p>
               </div>
-              <div className="p-4 bg-purple-50 rounded-lg">
+              <div className="p-4 bg-teal-50 rounded-lg">
                 <p className="text-sm text-gray-600">Avg Wait Time</p>
-                <p className="text-2xl font-bold text-purple-600">{reportData.avg_wait_time || 0} min</p>
+                <p className="text-2xl font-bold text-teal-700">{reportData.avg_wait_time || 0} min</p>
               </div>
               <div className="p-4 bg-orange-50 rounded-lg">
                 <p className="text-sm text-gray-600">No Shows</p>

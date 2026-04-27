@@ -241,15 +241,15 @@ export default function BillingDashboard({ facilityId }) {
     >
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
+        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-teal-500">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Charges</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{formatCurrencySimple(stats.totalCharges, 0)}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-teal-700" />
               </div>
             </div>
           </CardContent>
@@ -283,15 +283,15 @@ export default function BillingDashboard({ facilityId }) {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-purple-500">
+        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-teal-500">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending Claims</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{stats.pendingClaims}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <FileText className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
+                <FileText className="w-6 h-6 text-teal-700" />
               </div>
             </div>
           </CardContent>
@@ -355,7 +355,7 @@ export default function BillingDashboard({ facilityId }) {
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
                   <p className="mt-2 text-gray-600">Loading...</p>
                 </div>
               ) : (

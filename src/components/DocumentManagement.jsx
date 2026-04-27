@@ -130,7 +130,7 @@ const DocumentManagement = ({ patientId }) => {
       if (uploadFormData.expires_at) formData.append('expires_at', uploadFormData.expires_at);
 
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:5000/api/documents/upload', {
+      const response = await fetch('/api/documents/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -167,7 +167,7 @@ const DocumentManagement = ({ patientId }) => {
   const handleDownload = async (docId) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:5000/api/documents/${docId}/download`, {
+      const response = await fetch(`/api/documents/${docId}/download`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -196,7 +196,7 @@ const DocumentManagement = ({ patientId }) => {
   const handlePreview = async (docId) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const previewUrl = `http://localhost:5000/api/documents/${docId}/preview?token=${token}`;
+      const previewUrl = `/api/documents/${docId}/preview?token=${token}`;
       window.open(previewUrl, '_blank');
     } catch (error) {
       console.error('Error previewing document:', error);
@@ -342,7 +342,7 @@ const DocumentManagement = ({ patientId }) => {
             onClick={() => setActiveTab('documents')}
             className={`pb-3 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'documents'
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-teal-600 text-teal-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -352,7 +352,7 @@ const DocumentManagement = ({ patientId }) => {
             onClick={() => setActiveTab('categories')}
             className={`pb-3 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'categories'
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-teal-600 text-teal-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -362,7 +362,7 @@ const DocumentManagement = ({ patientId }) => {
             onClick={() => setActiveTab('templates')}
             className={`pb-3 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'templates'
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-teal-600 text-teal-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -655,7 +655,7 @@ const DocumentManagement = ({ patientId }) => {
 
           {/* Bulk Actions */}
           {selectedDocuments.length > 0 && (
-            <Card className="mb-4 bg-blue-50">
+            <Card className="mb-4 bg-teal-50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">
@@ -692,7 +692,7 @@ const DocumentManagement = ({ patientId }) => {
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
                   <p className="text-gray-600 mt-2">Loading documents...</p>
                 </div>
               ) : documents.length === 0 ? (
@@ -709,7 +709,7 @@ const DocumentManagement = ({ patientId }) => {
                       <div
                         key={doc.id}
                         className={`p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
-                          selectedDocuments.includes(doc.id) ? 'bg-blue-50 border-blue-300' : ''
+                          selectedDocuments.includes(doc.id) ? 'bg-teal-50 border-teal-300' : ''
                         }`}
                       >
                         <div className="flex items-start justify-between">
@@ -726,10 +726,10 @@ const DocumentManagement = ({ patientId }) => {
                               }}
                               className="mt-1"
                             />
-                            <File className="w-5 h-5 text-blue-600 mt-1" />
+                            <File className="w-5 h-5 text-teal-700 mt-1" />
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600"
+                                <h3 className="font-semibold text-gray-900 cursor-pointer hover:text-teal-700"
                                     onClick={() => handleViewDetails(doc.id)}>
                                   {doc.title}
                                 </h3>
@@ -794,7 +794,7 @@ const DocumentManagement = ({ patientId }) => {
                       <Card key={doc.id} className="hover:shadow-md transition-shadow">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-2">
-                            <File className="w-5 h-5 text-blue-600" />
+                            <File className="w-5 h-5 text-teal-700" />
                             <input
                               type="checkbox"
                               checked={selectedDocuments.includes(doc.id)}

@@ -330,7 +330,7 @@ button, a, input, select, textarea {
 }
 
 .badge-dot.info::before {
-  @apply bg-blue-500;
+  @apply bg-teal-600;
 }
 
 /* Smooth page transitions */
@@ -381,7 +381,7 @@ button, a, input, select, textarea {
 /* Enhanced select dropdown */
 select.enhanced {
   @apply appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2.5 pr-10;
-  @apply focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20;
+  @apply focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
   background-position: right 0.5rem center;
   background-repeat: no-repeat;
@@ -406,7 +406,7 @@ select.enhanced {
 }
 
 .alert-info {
-  @apply bg-blue-50 border-blue-200 text-blue-800;
+  @apply bg-teal-50 border-teal-200 text-teal-900;
 }
 
 /* Enhanced modal backdrop */
@@ -421,15 +421,15 @@ select.enhanced {
 }
 
 .progress-fill {
-  @apply h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-300;
+  @apply h-full bg-gradient-to-r from-teal-600 to-teal-800 rounded-full transition-all duration-300;
 }
 
 /* Enhanced list item */
 .list-item {
   @apply flex items-center gap-3 p-4 rounded-lg border border-gray-200;
-  @apply hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-200;
+  @apply hover:border-teal-300 hover:bg-teal-50/50 transition-all duration-200;
 }
 
 .list-item-active {
-  @apply border-blue-500 bg-blue-50;
+  @apply border-teal-500 bg-teal-50;
 }

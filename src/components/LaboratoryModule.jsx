@@ -28,7 +28,7 @@ import {
   Package,
   BarChart3
 } from 'lucide-react'
-import apiService from '../services/apiService'
+import { apiService } from '../services/apiService'
 
 export default function LaboratoryModule() {
   const [activeTab, setActiveTab] = useState('pending-orders')
@@ -38,6 +38,8 @@ export default function LaboratoryModule() {
   const [results, setResults] = useState([])
   const [criticalValues, setCriticalValues] = useState([])
   const [qcData, setQcData] = useState([])
+  const [analytics, setAnalytics] = useState(null)
+  const [labInventory, setLabInventory] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -47,13 +49,15 @@ export default function LaboratoryModule() {
   const loadLabData = async () => {
     setLoading(true)
     try {
-      const [ordersRes, specimensRes, worklistRes, resultsRes, criticalRes, qcRes] = await Promise.all([
+      const [ordersRes, specimensRes, worklistRes, resultsRes, criticalRes, qcRes, analyticsRes, inventoryRes] = await Promise.all([
         apiService.request('/labs/pending-orders'),
         apiService.request('/labs/specimens'),
         apiService.request('/labs/worklist'),
         apiService.request('/labs/results'),
         apiService.request('/labs/critical-values'),
-        apiService.request('/labs/qc-data')
+        apiService.request('/labs/qc-data'),
+        apiService.request('/labs/analytics/tat'),
+        apiService.request('/labs/inventory')
       ])
       
       setPendingOrders(ordersRes.orders || [])
@@ -62,6 +66,8 @@ export default function LaboratoryModule() {
       setResults(resultsRes.results || [])
       setCriticalValues(criticalRes.critical || [])
       setQcData(qcRes.qc || [])
+      setAnalytics(analyticsRes.analytics || null)
+      setLabInventory(inventoryRes.inventory || [])
     } catch (error) {
       console.error('Error loading lab data:', error)
     } finally {
@@ -104,8 +110,8 @@ export default function LaboratoryModule() {
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'collected': return 'bg-blue-100 text-blue-800'
-      case 'processing': return 'bg-purple-100 text-purple-800'
+      case 'collected': return 'bg-teal-100 text-teal-800'
+      case 'processing': return 'bg-teal-100 text-teal-900'
       case 'completed': return 'bg-green-100 text-green-800'
       case 'rejected': return 'bg-red-100 text-red-800'
       case 'critical': return 'bg-red-100 text-red-800'
@@ -115,8 +121,8 @@ export default function LaboratoryModule() {
 
   const getPhaseIcon = (phase) => {
     switch (phase) {
-      case 'pre-analytical': return <TestTube className="w-5 h-5 text-blue-600" />
-      case 'analytical': return <Microscope className="w-5 h-5 text-purple-600" />
+      case 'pre-analytical': return <TestTube className="w-5 h-5 text-teal-700" />
+      case 'analytical': return <Microscope className="w-5 h-5 text-teal-700" />
       case 'post-analytical': return <FileText className="w-5 h-5 text-green-600" />
       default: return <Activity className="w-5 h-5 text-gray-600" />
     }
@@ -128,7 +134,7 @@ export default function LaboratoryModule() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Microscope className="w-8 h-8 text-purple-600" />
+            <Microscope className="w-8 h-8 text-teal-700" />
             Laboratory Information System (LIS)
           </h1>
           <p className="text-gray-600 mt-1">Pre-Analytical → Analytical → Post-Analytical Workflow</p>
@@ -208,14 +214,14 @@ export default function LaboratoryModule() {
                     <CardDescription>Orders received from CPOE awaiting billing clearance</CardDescription>
                   </div>
                 </div>
-                <Badge className="bg-blue-100 text-blue-800">Pre-Analytical</Badge>
+                <Badge className="bg-teal-100 text-teal-800">Pre-Analytical</Badge>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {pendingOrders.length > 0 ? (
                   pendingOrders.map((order) => (
-                    <Card key={order.id} className="border-l-4 border-l-blue-500">
+                    <Card key={order.id} className="border-l-4 border-l-teal-500">
                       <CardContent className="pt-6">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -289,18 +295,18 @@ export default function LaboratoryModule() {
                     <CardDescription>Specimen tracking and chain of custody</CardDescription>
                   </div>
                 </div>
-                <Badge className="bg-blue-100 text-blue-800">Pre-Analytical</Badge>
+                <Badge className="bg-teal-100 text-teal-800">Pre-Analytical</Badge>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {specimens.map((specimen) => (
-                  <Card key={specimen.id} className="border-l-4 border-l-purple-500">
+                  <Card key={specimen.id} className="border-l-4 border-l-teal-500">
                     <CardContent className="pt-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
-                            <QrCode className="w-8 h-8 text-purple-600" />
+                            <QrCode className="w-8 h-8 text-teal-700" />
                             <div>
                               <h4 className="font-semibold text-lg">Accession #: {specimen.accession_number}</h4>
                               <p className="text-sm text-gray-600">{specimen.patient_name} - MRN: {specimen.mrn}</p>
@@ -380,7 +386,7 @@ export default function LaboratoryModule() {
                     <CardDescription>Samples ready for testing with instrument integration</CardDescription>
                   </div>
                 </div>
-                <Badge className="bg-purple-100 text-purple-800">Analytical</Badge>
+                <Badge className="bg-teal-100 text-teal-900">Analytical</Badge>
               </div>
             </CardHeader>
             <CardContent>
@@ -391,7 +397,7 @@ export default function LaboratoryModule() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <Microscope className="w-6 h-6 text-purple-600" />
+                            <Microscope className="w-6 h-6 text-teal-700" />
                             <div>
                               <h4 className="font-semibold">Accession #: {item.accession_number}</h4>
                               <p className="text-sm text-gray-600">{item.patient_name}</p>
@@ -499,7 +505,7 @@ export default function LaboratoryModule() {
                             </div>
                             
                             {/* QC Checks */}
-                            <div className="p-3 bg-blue-50 rounded-lg">
+                            <div className="p-3 bg-teal-50 rounded-lg">
                               <h5 className="font-semibold text-sm mb-2">Quality Control Checks</h5>
                               <div className="grid grid-cols-3 gap-2 text-xs">
                                 <div className="flex items-center gap-1">
@@ -522,7 +528,7 @@ export default function LaboratoryModule() {
                               <div className="p-3 bg-gray-50 rounded-lg">
                                 <h5 className="font-semibold text-sm mb-2">Historical Trend</h5>
                                 <div className="flex items-center gap-2 text-xs">
-                                  <TrendingUp className="w-4 h-4 text-blue-600" />
+                                  <TrendingUp className="w-4 h-4 text-teal-700" />
                                   {result.previous_results.map((prev, i) => (
                                     <span key={i}>{prev.date}: {prev.value}</span>
                                   ))}
@@ -571,18 +577,19 @@ export default function LaboratoryModule() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {['Hematology Analyzer', 'Chemistry Analyzer', 'Immunology Analyzer'].map((analyzer, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                      {qcData.map((qc, i) => (
+                        <div key={qc.id || i} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
-                            <p className="font-medium">{analyzer}</p>
-                            <p className="text-sm text-gray-600">Last QC: 2 hours ago</p>
+                            <p className="font-medium">{qc.analyzer}</p>
+                            <p className="text-sm text-gray-600">{qc.parameter} | {qc.control_level || 'Control'}</p>
                           </div>
-                          <Badge className="bg-green-100 text-green-800">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Pass
+                          <Badge className={qc.status === 'pass' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                            {qc.status === 'pass' ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                            {qc.status}
                           </Badge>
                         </div>
                       ))}
+                      {qcData.length === 0 && <div className="text-sm text-gray-500">No QC records</div>}
                     </div>
                   </CardContent>
                 </Card>
@@ -593,15 +600,11 @@ export default function LaboratoryModule() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {[
-                        { item: 'CBC Reagent', stock: 45, reorder: 20, status: 'ok' },
-                        { item: 'LFT Reagent', stock: 12, reorder: 20, status: 'low' },
-                        { item: 'EDTA Tubes', stock: 150, reorder: 50, status: 'ok' }
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                      {labInventory.map((item, i) => (
+                        <div key={item.id || i} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
                             <p className="font-medium">{item.item}</p>
-                            <p className="text-sm text-gray-600">Reorder level: {item.reorder}</p>
+                            <p className="text-sm text-gray-600">Reorder level: {item.reorder_level}</p>
                           </div>
                           <div className="text-right">
                             <p className={`font-bold ${item.status === 'low' ? 'text-red-600' : 'text-green-600'}`}>
@@ -616,6 +619,7 @@ export default function LaboratoryModule() {
                           </div>
                         </div>
                       ))}
+                      {labInventory.length === 0 && <div className="text-sm text-gray-500">No inventory records</div>}
                     </div>
                   </CardContent>
                 </Card>
@@ -637,8 +641,8 @@ export default function LaboratoryModule() {
                   <CardContent className="pt-6">
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Average TAT</p>
-                      <p className="text-3xl font-bold text-blue-600">2.5 hrs</p>
-                      <p className="text-xs text-gray-500">Target: 4 hrs</p>
+                      <p className="text-3xl font-bold text-teal-700">{analytics?.average_tat || '0 hours'}</p>
+                      <p className="text-xs text-gray-500">Target: {analytics?.target_tat || '4 hours'}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -646,8 +650,8 @@ export default function LaboratoryModule() {
                   <CardContent className="pt-6">
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Tests Today</p>
-                      <p className="text-3xl font-bold text-green-600">247</p>
-                      <p className="text-xs text-gray-500">+12% vs yesterday</p>
+                      <p className="text-3xl font-bold text-green-600">{analytics?.tests_today || 0}</p>
+                      <p className="text-xs text-gray-500">Yesterday: {analytics?.tests_yesterday || 0}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -655,8 +659,8 @@ export default function LaboratoryModule() {
                   <CardContent className="pt-6">
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Critical Values</p>
-                      <p className="text-3xl font-bold text-red-600">5</p>
-                      <p className="text-xs text-gray-500">All notified</p>
+                      <p className="text-3xl font-bold text-red-600">{analytics?.critical_values_today || 0}</p>
+                      <p className="text-xs text-gray-500">Require notification workflow</p>
                     </div>
                   </CardContent>
                 </Card>

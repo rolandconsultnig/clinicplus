@@ -253,7 +253,7 @@ export default function DoctorConsultationPage({ patientId, encounterId }) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading patient data...</p>
         </div>
       </div>
@@ -342,8 +342,8 @@ function PatientHeader({ patient, encounter }) {
     <div className="bg-white border-b px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-            <User className="w-8 h-8 text-blue-600" />
+          <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center">
+            <User className="w-8 h-8 text-teal-700" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -535,7 +535,7 @@ function ClinicalOverview({ patient, encounter }) {
           {previousVisits.length > 0 ? (
             <div className="space-y-3">
               {previousVisits.map((visit, idx) => (
-                <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2 hover:bg-gray-50 cursor-pointer">
+                <div key={idx} className="border-l-4 border-teal-500 pl-4 py-2 hover:bg-gray-50 cursor-pointer">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold">{visit.encounter_date}</p>
@@ -727,7 +727,7 @@ function SOAPDocumentation({ patientId, encounterId, soapNote, setSoapNote }) {
               <Label>Selected Diagnoses</Label>
               <div className="space-y-2 mt-2">
                 {selectedDiagnoses.map((diagnosis, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                  <div key={idx} className="flex items-center justify-between p-2 bg-teal-50 rounded">
                     <div>
                       <p className="font-semibold text-sm">{diagnosis.code}</p>
                       <p className="text-xs text-gray-600">{diagnosis.description}</p>
@@ -1060,7 +1060,7 @@ function PrescriptionOrderForm({ patientId, encounterId }) {
           <div className="space-y-2">
             <Label>Prescriptions to Send</Label>
             {prescriptions.map((rx, idx) => (
-              <div key={idx} className="p-3 bg-blue-50 rounded-md flex items-center justify-between">
+              <div key={idx} className="p-3 bg-teal-50 rounded-md flex items-center justify-between">
                 <div>
                   <p className="font-semibold">{rx.medication} - {rx.dosage}</p>
                   <p className="text-sm text-gray-600">{rx.frequency} for {rx.duration}</p>
@@ -1359,7 +1359,7 @@ function ResultsReview({ patientId }) {
           {labResults.length > 0 ? (
             <div className="space-y-3">
               {labResults.map((result, idx) => (
-                <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
+                <div key={idx} className="border-l-4 border-teal-500 pl-4 py-2">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold">{result.test_name}</p>

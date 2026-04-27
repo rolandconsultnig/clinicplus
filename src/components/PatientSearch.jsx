@@ -17,7 +17,7 @@ import {
   X
 } from 'lucide-react';
 
-const PatientSearch = ({ onSelectPatient, showCreateButton = false }) => {
+const PatientSearch = ({ onSelectPatient, showCreateButton = false, onCreatePatient }) => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,7 +103,11 @@ const PatientSearch = ({ onSelectPatient, showCreateButton = false }) => {
             <CardDescription>Search by name, ID, phone, or email</CardDescription>
           </div>
           {showCreateButton && (
-            <Button size="sm">
+            <Button
+              size="sm"
+              type="button"
+              onClick={() => onCreatePatient?.()}
+            >
               <Plus className="w-4 h-4 mr-2" />
               New Patient
             </Button>
@@ -125,12 +129,12 @@ const PatientSearch = ({ onSelectPatient, showCreateButton = false }) => {
 
         {/* Selected Patient Display */}
         {selectedPatient && (
-          <Card className="mb-4 border-blue-300 bg-blue-50">
+          <Card className="mb-4 border-teal-300 bg-teal-50">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <User className="w-5 h-5 text-blue-600" />
+                    <User className="w-5 h-5 text-teal-700" />
                     <h3 className="font-semibold text-lg text-gray-900">
                       {selectedPatient.first_name} {selectedPatient.last_name}
                     </h3>
@@ -172,7 +176,7 @@ const PatientSearch = ({ onSelectPatient, showCreateButton = false }) => {
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {loading ? (
               <div className="text-center py-8">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
                 <p className="mt-2 text-gray-600">Searching...</p>
               </div>
             ) : patients.length > 0 ? (
@@ -180,11 +184,11 @@ const PatientSearch = ({ onSelectPatient, showCreateButton = false }) => {
                 <div
                   key={patient.id}
                   onClick={() => handleSelectPatient(patient)}
-                  className="p-3 border rounded-lg cursor-pointer transition-all hover:bg-blue-50 hover:border-blue-300"
+                  className="p-3 border rounded-lg cursor-pointer transition-all hover:bg-teal-50 hover:border-teal-300"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="w-5 h-5 text-blue-600" />
+                    <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 text-teal-700" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">

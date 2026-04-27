@@ -58,7 +58,7 @@ export default function InsurancePlans({ onSubscribe }) {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
               <p className="mt-2 text-gray-600">Loading plans...</p>
             </div>
           </CardContent>
@@ -66,10 +66,10 @@ export default function InsurancePlans({ onSubscribe }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {plans.map(plan => (
-            <Card key={plan.id} className="hover:shadow-xl transition-all border-l-4 border-l-blue-500">
+            <Card key={plan.id} className="hover:shadow-xl transition-all border-l-4 border-l-teal-500">
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white">
+                  <div className="w-12 h-12 bg-gradient-to-br from-teal-600 to-teal-700 rounded-lg flex items-center justify-center text-white">
                     {getPlanIcon(plan.plan_type)}
                   </div>
                   <div className="flex-1">
@@ -134,7 +134,7 @@ export default function InsurancePlans({ onSubscribe }) {
                   )}
 
                   <Button
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    className="w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800"
                     onClick={() => onSubscribe && onSubscribe(plan)}
                   >
                     Subscribe Now

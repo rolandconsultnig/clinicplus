@@ -1,6 +1,8 @@
 """
 Health Check and System Status API Routes
 """
+import os
+
 from flask import Blueprint, jsonify
 from src.models.user import db
 from datetime import datetime
@@ -9,7 +11,7 @@ health_bp = Blueprint('health', __name__)
 
 @health_bp.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint for load balancers and platform health checks (includes DB probe)."""
     try:
         # Check database connection
         from sqlalchemy import text
@@ -17,13 +19,23 @@ def health_check():
         db_status = 'healthy'
     except Exception as e:
         db_status = f'unhealthy: {str(e)}'
-    
+
+    hosting = 'production' if (
+        os.environ.get('RAILWAY_ENVIRONMENT')
+        or os.environ.get('RENDER')
+        or os.environ.get('RENDER_EXTERNAL_URL')
+        or os.environ.get('DYNO')
+    ) else 'development'
+
+    ok = db_status == 'healthy'
     return jsonify({
-        'status': 'ok' if db_status == 'healthy' else 'degraded',
+        'status': 'healthy' if ok else 'degraded',
+        'message': 'Clinic+ API is running',
         'timestamp': datetime.utcnow().isoformat(),
         'database': db_status,
-        'version': '1.0.0'
-    }), 200 if db_status == 'healthy' else 503
+        'version': '1.0.0',
+        'environment': hosting,
+    }), 200 if ok else 503
 
 @health_bp.route('/status', methods=['GET'])
 def system_status():

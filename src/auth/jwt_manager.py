@@ -4,6 +4,7 @@ Handles token generation, validation, and user authentication
 """
 
 import jwt
+import os
 from functools import wraps
 from flask import request, jsonify, current_app
 from werkzeug.security import check_password_hash
@@ -80,12 +81,34 @@ class JWTManager:
                 'iss': 'clinicplus'
             }
             
-            # Generate token
+            # Generate token - get SECRET_KEY from app config or environment
+            try:
+                secret_key = current_app.config.get('SECRET_KEY')
+            except RuntimeError:
+                # If no app context, try to get from environment
+                secret_key = os.environ.get('SECRET_KEY', 'medical_app_secret_key_change_in_production')
+            
+            if not secret_key:
+                raise ValueError('SECRET_KEY not configured')
+            
             token = jwt.encode(
                 payload,
-                current_app.config['SECRET_KEY'],
+                secret_key,
                 algorithm='HS256'
             )
+            
+            # Get facility information if facility_id is provided
+            facility_info = None
+            if facility_id:
+                from src.models.provider import Facility
+                facility = Facility.query.get(facility_id)
+                if facility:
+                    facility_info = {
+                        'id': facility.id,
+                        'facility_id': facility.facility_id,
+                        'facility_name': facility.facility_name,
+                        'facility_type': facility.facility_type
+                    }
             
             return {
                 'success': True,
@@ -95,7 +118,9 @@ class JWTManager:
                     'id': user_account.id,
                     'username': user_account.username,
                     'user_type': user_account.user_type,
-                    'roles': roles
+                    'roles': roles,
+                    'facility_id': facility_id,
+                    'facility': facility_info
                 }
             }
             
@@ -109,9 +134,19 @@ class JWTManager:
     def verify_token(token):
         """Verify and decode JWT token"""
         try:
+            # Get SECRET_KEY from app config or environment
+            try:
+                secret_key = current_app.config.get('SECRET_KEY')
+            except RuntimeError:
+                # If no app context, try to get from environment
+                secret_key = os.environ.get('SECRET_KEY', 'medical_app_secret_key_change_in_production')
+            
+            if not secret_key:
+                raise ValueError('SECRET_KEY not configured')
+            
             payload = jwt.decode(
                 token,
-                current_app.config['SECRET_KEY'],
+                secret_key,
                 algorithms=['HS256'],
                 issuer='clinicplus'
             )
@@ -172,11 +207,35 @@ class JWTManager:
             user_account.last_login = datetime.utcnow()
             user_account.account_locked_until = None
             db.session.commit()
-            
+
+            # Resolve facility for JWT (receptionist routes need non-null facility_id)
+            resolved_facility_id = facility_id
+            if not resolved_facility_id and getattr(user_account, 'facility_id', None):
+                resolved_facility_id = user_account.facility_id
+            if not resolved_facility_id:
+                first_role = (
+                    db.session.query(UserRole)
+                    .filter(
+                        UserRole.user_account_id == user_account.id,
+                        UserRole.is_active == True,
+                        UserRole.facility_id.isnot(None),
+                    )
+                    .first()
+                )
+                if first_role:
+                    resolved_facility_id = first_role.facility_id
+
             # Generate token
-            return JWTManager.generate_token(user_account, facility_id)
+            token_result = JWTManager.generate_token(user_account, resolved_facility_id)
+            if not token_result.get('success'):
+                print(f"[AUTH ERROR] Token generation failed: {token_result.get('error')}")
+            return token_result
             
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"[AUTH ERROR] Authentication exception: {str(e)}")
+            print(f"[AUTH ERROR TRACEBACK]\n{error_trace}")
             return {'success': False, 'error': f'Authentication failed: {str(e)}'}
 
 def token_required(f):
@@ -233,6 +292,37 @@ def token_required(f):
     
     return decorated
 
+
+def _normalize_role_token(value):
+    """Lowercase role / user_type token with spaces and hyphens collapsed for comparison."""
+    return str(value or '').strip().lower().replace(' ', '_').replace('-', '_')
+
+
+def _collect_effective_role_tokens(payload):
+    """
+    Tokens granted by JWT role rows plus user_type.
+    Many Clinic+ logins only set user_type on UserAccount while roles[] is empty — without this,
+    @role_required would always return 403 for those users.
+    """
+    tokens = set()
+    for role in payload.get('roles') or []:
+        name = role.get('role_name')
+        if name:
+            tokens.add(_normalize_role_token(name))
+    ut = _normalize_role_token(payload.get('user_type'))
+    if ut:
+        tokens.add(ut)
+        if ut in ('admin', 'root_admin'):
+            tokens.update(('system_administrator', 'administrator', 'admin'))
+        if ut in ('doctor', 'provider'):
+            tokens.add('physician')
+        if ut == 'system_administrator':
+            tokens.add('system_administrator')
+        if ut == 'facility_administrator':
+            tokens.add('facility_administrator')
+    return tokens
+
+
 def role_required(required_roles):
     """Decorator to require specific roles for API endpoints"""
     def decorator(f):
@@ -240,29 +330,33 @@ def role_required(required_roles):
         def decorated(*args, **kwargs):
             if not hasattr(request, 'token_payload'):
                 return jsonify({'error': 'Authentication required'}), 401
-            
-            user_roles = [role['role_name'] for role in request.token_payload.get('roles', [])]
-            user_type = request.token_payload.get('user_type', '').lower()
-            
-            # Normalize role names for case-insensitive comparison
-            user_roles_lower = [role.lower() for role in user_roles]
-            required_roles_lower = [role.lower() for role in required_roles]
-            
-            # Check if user has any of the required roles (case-insensitive)
-            has_role = any(req_role in user_roles_lower for req_role in required_roles_lower)
-            
-            # Also check exact matches (for backward compatibility)
+
+            payload = request.token_payload
+            user_roles = [role['role_name'] for role in payload.get('roles', [])]
+
+            effective_tokens = _collect_effective_role_tokens(payload)
+            required_tokens = {_normalize_role_token(r) for r in required_roles}
+
+            has_role = not required_tokens.isdisjoint(effective_tokens)
+
+            # Exact display-name matches (legacy tokens that do not normalize the same way)
             has_exact_match = any(role in user_roles for role in required_roles)
-            
-            # Check if user_type is admin and any required role contains 'admin' or 'administrator'
-            is_admin_user = user_type == 'admin'
-            requires_admin = any('admin' in role.lower() or 'administrator' in role.lower() for role in required_roles)
-            
+
+            requires_admin = bool(
+                required_tokens
+                & {'system_administrator', 'administrator', 'facility_administrator'}
+            )
+
+            is_admin_user = bool(
+                effective_tokens
+                & {'admin', 'root_admin', 'system_administrator', 'administrator', 'facility_administrator'}
+            )
+
             if not (has_role or has_exact_match or (is_admin_user and requires_admin)):
                 return jsonify({'error': 'Insufficient permissions', 'message': 'You do not have permission to access this resource'}), 403
-            
+
             return f(*args, **kwargs)
-        
+
         return decorated
     return decorator
 

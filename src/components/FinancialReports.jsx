@@ -9,7 +9,7 @@ import { formatCurrencySimple } from '../utils/currency';
 
 const FinancialReports = ({ userId, role, facilityId }) => {
   const [financialData, setFinancialData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('month'); // month, quarter, year
 
   useEffect(() => {
@@ -21,7 +21,10 @@ const FinancialReports = ({ userId, role, facilityId }) => {
       setLoading(true);
       // Try to load financial data from API
       try {
-        const result = await apiService.request(`/billing/reports?period=${period}&facility_id=${facilityId}`, { method: 'GET' });
+        const result = await apiService.request(
+          `/billing/reports?period=${period}${facilityId != null ? `&facility_id=${facilityId}` : ''}`,
+          { method: 'GET' }
+        );
         if (result.success) {
           setFinancialData(result.data);
         }
@@ -76,6 +79,14 @@ const FinancialReports = ({ userId, role, facilityId }) => {
     };
   };
 
+  if (loading && !financialData) {
+    return (
+      <Card className="border-0 shadow-xl">
+        <CardContent className="p-8 text-sm text-slate-600">Loading financial reports…</CardContent>
+      </Card>
+    );
+  }
+
   if (!financialData) {
     return null;
   }
@@ -97,7 +108,7 @@ const FinancialReports = ({ userId, role, facilityId }) => {
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="month">This Month</option>
               <option value="quarter">This Quarter</option>
@@ -165,10 +176,10 @@ const FinancialReports = ({ userId, role, facilityId }) => {
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-white">
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-teal-50/60 to-white">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
                       <TrendingUp className="w-6 h-6 text-white" />
                     </div>
                     {summary.profitChange > 0 ? (
@@ -242,10 +253,10 @@ const FinancialReports = ({ userId, role, facilityId }) => {
                   <p className="text-3xl font-bold text-amber-600">{formatCurrencySimple(outstanding.overdue, 0)}</p>
                 </CardContent>
               </Card>
-              <Card className="border-0 shadow-lg border-l-4 border-l-blue-500">
+              <Card className="border-0 shadow-lg border-l-4 border-l-teal-500">
                 <CardContent className="p-6">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Current</p>
-                  <p className="text-3xl font-bold text-blue-600">{formatCurrencySimple(outstanding.current, 0)}</p>
+                  <p className="text-3xl font-bold text-teal-700">{formatCurrencySimple(outstanding.current, 0)}</p>
                 </CardContent>
               </Card>
             </div>

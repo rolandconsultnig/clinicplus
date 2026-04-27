@@ -54,18 +54,24 @@ export default function AIConsultation({ patientId }) {
   const audioChunksRef = useRef([])
 
   useEffect(() => {
+    if (!patientId) {
+      setAnalysisHistory([])
+      setMedicalHistory('')
+      return
+    }
     loadAnalysisHistory()
     loadPatientData()
   }, [patientId])
 
   const loadPatientData = async () => {
+    if (!patientId) return
     try {
-      const response = await apiService.request(`/patients/${patientId}`)
+      const response = await apiService.request(`/secure/patients/${patientId}`)
       if (response.success && response.patient) {
         // Load patient's medical history
-        const historyResponse = await apiService.request(`/patients/${patientId}/medical-history`)
+        const historyResponse = await apiService.request(`/secure/medical/patients/${patientId}/medical-history`)
         if (historyResponse.success) {
-          const history = historyResponse.history || []
+          const history = historyResponse.medical_history || []
           setMedicalHistory(history.map(h => h.condition).join(', '))
         }
       }
@@ -75,6 +81,7 @@ export default function AIConsultation({ patientId }) {
   }
 
   const loadAnalysisHistory = async () => {
+    if (!patientId) return
     try {
       const response = await apiService.request(`/ai/consultation?patient_id=${patientId}`)
       if (response.success) {
@@ -120,6 +127,10 @@ export default function AIConsultation({ patientId }) {
   }
 
   const transcribeAudio = async (audioBlob) => {
+    if (!patientId) {
+      alert('Select a patient before using AI transcription.')
+      return
+    }
     setTranscribing(true)
     try {
       const formData = new FormData()
@@ -144,6 +155,10 @@ export default function AIConsultation({ patientId }) {
   }
 
   const handleAnalyze = async () => {
+    if (!patientId) {
+      alert('Select a patient before running AI analysis.')
+      return
+    }
     setLoading(true)
     try {
       const response = await apiService.request('/ai/consultation', {
@@ -170,6 +185,10 @@ export default function AIConsultation({ patientId }) {
   }
 
   const handleGenerateNotes = async () => {
+    if (!patientId) {
+      alert('Select a patient before generating notes.')
+      return
+    }
     setIsGeneratingNotes(true)
     try {
       const consultationId = aiResponse?.consultation_id || Date.now()
@@ -197,7 +216,7 @@ export default function AIConsultation({ patientId }) {
   }
 
   const handleSaveNotes = async () => {
-    if (!generatedNotes) return
+    if (!generatedNotes || !patientId) return
     
     try {
       const response = await apiService.request('/soap-notes', {
@@ -231,14 +250,14 @@ export default function AIConsultation({ patientId }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Brain className="w-8 h-8 text-purple-600" />
+            <Brain className="w-8 h-8 text-teal-700" />
             AI-Assisted Consultation
           </h1>
           <p className="text-gray-600 mt-1">
             Get AI-powered diagnostic suggestions and treatment recommendations
           </p>
         </div>
-        <Badge variant="outline" className="text-purple-600 border-purple-600">
+        <Badge variant="outline" className="text-teal-700 border-teal-600">
           <Sparkles className="w-3 h-3 mr-1" />
           AI Powered
         </Badge>
@@ -261,7 +280,7 @@ export default function AIConsultation({ patientId }) {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Speech-to-Text Section */}
-              <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <Label className="text-lg font-semibold">Voice Input (Speech-to-Text)</Label>
                   <div className="flex gap-2">
@@ -295,7 +314,7 @@ export default function AIConsultation({ patientId }) {
                   </div>
                 )}
                 {transcribing && (
-                  <div className="flex items-center gap-2 text-purple-600 mt-2">
+                  <div className="flex items-center gap-2 text-teal-700 mt-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span className="text-sm">Transcribing audio...</span>
                   </div>
@@ -404,7 +423,7 @@ export default function AIConsultation({ patientId }) {
                 <Button 
                   onClick={handleAnalyze} 
                   disabled={loading || !symptoms}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                  className="flex-1 bg-teal-600 hover:bg-teal-700"
                 >
                   {loading ? (
                     <>
@@ -432,7 +451,7 @@ export default function AIConsultation({ patientId }) {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-blue-600" />
+                      <FileText className="w-5 h-5 text-teal-700" />
                       Possible Diagnoses
                     </CardTitle>
                   </CardHeader>
@@ -536,7 +555,7 @@ export default function AIConsultation({ patientId }) {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-purple-600" />
+                      <TrendingUp className="w-5 h-5 text-teal-700" />
                       AI Confidence Score
                     </CardTitle>
                   </CardHeader>
@@ -545,12 +564,12 @@ export default function AIConsultation({ patientId }) {
                       <div className="flex-1">
                         <div className="w-full bg-gray-200 rounded-full h-4">
                           <div 
-                            className="bg-purple-600 h-4 rounded-full transition-all"
+                            className="bg-teal-600 h-4 rounded-full transition-all"
                             style={{ width: `${aiResponse.confidence}%` }}
                           />
                         </div>
                       </div>
-                      <span className="text-2xl font-bold text-purple-600">
+                      <span className="text-2xl font-bold text-teal-700">
                         {aiResponse.confidence}%
                       </span>
                     </div>

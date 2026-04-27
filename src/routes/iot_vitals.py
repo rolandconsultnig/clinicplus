@@ -417,25 +417,35 @@ def sync_device_data(device_id):
     """Manually trigger device data synchronization"""
     try:
         device = DeviceRegistration.query.filter_by(device_id=device_id).first_or_404()
-        
-        # In production, this would trigger actual device sync
-        # For now, just log the sync attempt
+        previous_sync = device.last_sync
+        now = datetime.utcnow()
+        recent_query = IoTVitalReading.query.filter(IoTVitalReading.device_id == device_id)
+        if previous_sync:
+            recent_query = recent_query.filter(IoTVitalReading.reading_timestamp > previous_sync)
+        readings_synced = recent_query.count()
+
+        sync_status = 'success'
+        if readings_synced == 0:
+            sync_status = 'partial'
+
         sync_log = DeviceSyncLog(
             device_id=device_id,
             sync_type='manual',
-            sync_status='success',
-            readings_synced=0
+            sync_status=sync_status,
+            readings_synced=readings_synced
         )
         
-        device.last_sync = datetime.utcnow()
+        device.last_sync = now
         
         db.session.add(sync_log)
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': 'Device sync initiated',
-            'last_sync': device.last_sync.isoformat()
+            'message': 'Device sync completed',
+            'last_sync': device.last_sync.isoformat(),
+            'readings_synced': readings_synced,
+            'sync_status': sync_status
         }), 200
         
     except Exception as e:

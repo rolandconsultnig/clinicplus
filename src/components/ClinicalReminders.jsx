@@ -201,7 +201,7 @@ const ClinicalReminders = ({ patientId }) => {
     switch (priority) {
       case 'critical': return 'bg-red-100 text-red-800';
       case 'high': return 'bg-orange-100 text-orange-800';
-      case 'normal': return 'bg-blue-100 text-blue-800';
+      case 'normal': return 'bg-teal-100 text-teal-800';
       case 'low': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -211,7 +211,7 @@ const ClinicalReminders = ({ patientId }) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800';
       case 'overdue': return 'bg-red-100 text-red-800';
-      case 'active': return 'bg-blue-100 text-blue-800';
+      case 'active': return 'bg-teal-100 text-teal-800';
       case 'dismissed': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -364,7 +364,7 @@ const ClinicalReminders = ({ patientId }) => {
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
                   <p className="text-gray-600 mt-2">Loading reminders...</p>
                 </div>
               ) : filteredReminders.length === 0 ? (

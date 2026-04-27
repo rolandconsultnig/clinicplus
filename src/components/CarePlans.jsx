@@ -135,7 +135,7 @@ const CarePlans = ({ patientId }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'bg-blue-100 text-blue-800';
+      case 'active': return 'bg-teal-100 text-teal-800';
       case 'completed': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'on_hold': return 'bg-yellow-100 text-yellow-800';
@@ -252,7 +252,7 @@ const CarePlans = ({ patientId }) => {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
               <p className="text-gray-600 mt-2">Loading care plans...</p>
             </div>
           ) : plans.length === 0 ? (

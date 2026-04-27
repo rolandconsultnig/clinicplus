@@ -410,7 +410,7 @@ def update_portal_settings():
 # Fax/Scan
 @specialized_bp.route('/fax/queue', methods=['GET'])
 @token_required
-@role_required(['Receptionist', 'System Administrator'])
+@role_required(['Receptionist', 'System Administrator', 'Physician', 'Nurse', 'Facility Administrator'])
 def get_fax_queue():
     """Get fax queue"""
     try:
@@ -448,7 +448,7 @@ def send_fax():
 # Chart Tracker
 @specialized_bp.route('/chart-tracker', methods=['GET'])
 @token_required
-@role_required(['Receptionist', 'System Administrator'])
+@role_required(['Receptionist', 'System Administrator', 'Physician', 'Nurse', 'Facility Administrator'])
 def get_chart_tracker():
     """Get chart tracker"""
     try:

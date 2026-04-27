@@ -5,7 +5,7 @@ Processes HL7 messages for lab orders and results
 from flask import Blueprint, request, jsonify
 from src.auth.jwt_manager import token_required, role_required
 from src.models.user import db
-from src.models.clinical import LabOrder, LabResult
+from src.models.clinical import LabOrder, LabResult, ClinicalEncounter
 from src.models.patient import Patient
 from datetime import datetime
 import json
@@ -81,6 +81,14 @@ def process_lab_result_hl7(msg):
             if hasattr(obr, 'universal_service_id'):
                 test_name = obr.universal_service_id.text.value if hasattr(obr.universal_service_id, 'text') else None
                 test_code = obr.universal_service_id.identifier.value if hasattr(obr.universal_service_id, 'identifier') else None
+
+        lab_order = None
+        if order_id:
+            lab_order = LabOrder.query.filter_by(order_id=order_id, patient_id=patient_id).first()
+        if not lab_order:
+            lab_order = LabOrder.query.filter_by(patient_id=patient_id).order_by(LabOrder.order_date.desc()).first()
+        if not lab_order:
+            return jsonify({'error': 'No matching lab order found for patient'}), 404
         
         # Process OBX segments (observations)
         results_created = []
@@ -92,6 +100,8 @@ def process_lab_result_hl7(msg):
                     result_value = obx.observation_value.value if hasattr(obx.observation_value, 'value') else None
                     result_unit = obx.units.text.value if hasattr(obx.units, 'text') else None
                     result_status = obx.observation_result_status.value if hasattr(obx, 'observation_result_status') else 'F'
+                    test_name_obx = test_name
+                    test_code_obx = test_code
                     
                     # Get test name from OBX if not in OBR
                     if hasattr(obx, 'observation_id'):
@@ -99,24 +109,28 @@ def process_lab_result_hl7(msg):
                         test_code_obx = obx.observation_id.identifier.value if hasattr(obx.observation_id, 'identifier') else test_code
                     
                     # Create lab result
+                    normalized_status = (result_status or '').upper()
                     lab_result = LabResult(
+                        result_id=f"RES-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}",
                         patient_id=patient_id,
-                        lab_order_id=order_id,
+                        order_id=lab_order.order_id,
+                        lab_order_id=lab_order.id,
                         test_name=test_name_obx or test_name or 'Unknown Test',
                         test_code=test_code_obx or test_code or 'UNKNOWN',
                         result_value=str(result_value) if result_value else None,
                         result_unit=result_unit,
-                        result_status=result_status,
+                        units=result_unit,
+                        result_status='final' if normalized_status in ('F', 'C') else 'preliminary',
                         result_date=datetime.utcnow(),
-                        reference_range_low=None,
-                        reference_range_high=None,
-                        abnormal_flag='H' if result_status == 'F' else 'N',
+                        abnormal_flag='normal',
                         notes=None
                     )
                     
                     db.session.add(lab_result)
                     results_created.append(lab_result.id)
         
+        lab_order.status = 'completed'
+        lab_order.order_status = 'completed'
         db.session.commit()
         
         return jsonify({
@@ -164,17 +178,23 @@ def process_lab_order_hl7(msg):
                 test_name = obr.universal_service_id.text.value if hasattr(obr.universal_service_id, 'text') else None
                 test_code = obr.universal_service_id.identifier.value if hasattr(obr.universal_service_id, 'identifier') else None
         
+        encounter = ClinicalEncounter.query.filter_by(patient_id=patient_id).order_by(ClinicalEncounter.encounter_date.desc()).first()
+        if not encounter:
+            return jsonify({'error': 'No encounter found for patient; cannot create lab order'}), 400
+
         # Create lab order
         lab_order = LabOrder(
             patient_id=patient_id,
             order_id=order_id or f"ORD-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            encounter_id=encounter.id,
+            ordering_provider_id=encounter.provider_id,
+            facility_id=encounter.facility_id,
             test_name=test_name or 'Unknown Test',
             test_code=test_code or 'UNKNOWN',
+            test_category='laboratory',
             order_date=datetime.utcnow(),
             order_status='pending',
-            ordered_by=None,
-            facility_id=None,
-            notes=None
+            status='pending'
         )
         
         db.session.add(lab_order)

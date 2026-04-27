@@ -306,7 +306,7 @@ const UserManagement = () => {
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
                   <p className="text-gray-600 mt-2">Loading users...</p>
                 </div>
               ) : filteredUsers.length === 0 ? (
@@ -321,7 +321,7 @@ const UserManagement = () => {
                       className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center gap-4 flex-1">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold">
+                        <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-full flex items-center justify-center text-white font-semibold">
                           {user.username?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div className="flex-1">

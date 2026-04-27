@@ -73,7 +73,7 @@ const TenantAdminDashboard = ({ organizationId }) => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
@@ -116,15 +116,15 @@ const TenantAdminDashboard = ({ organizationId }) => {
   const users = dashboardData.users || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50/50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <Card className="shadow-md border-l-4 border-l-blue-500">
+        <Card className="shadow-md border-l-4 border-l-teal-500">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                  <Building2 className="w-8 h-8 text-blue-600" />
+                  <Building2 className="w-8 h-8 text-teal-700" />
                   {org.organization_name || 'Organization'} Admin Dashboard
                 </CardTitle>
                 <CardDescription className="mt-2 flex items-center gap-4">
@@ -145,7 +145,7 @@ const TenantAdminDashboard = ({ organizationId }) => {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Shield className="w-6 h-6 text-blue-600" />
+                <Shield className="w-6 h-6 text-teal-700" />
                 <Badge variant="outline" className="text-lg px-4 py-2">
                   Admin Access
                 </Badge>
@@ -179,10 +179,10 @@ const TenantAdminDashboard = ({ organizationId }) => {
               </div>
               <div className="lg:col-span-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+              <Card className="border-l-4 border-l-teal-500 shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">Facilities</CardTitle>
-                  <Building className="h-5 w-5 text-blue-500" />
+                  <Building className="h-5 w-5 text-teal-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-gray-900">{summary.facilities || 0}</div>
@@ -204,13 +204,13 @@ const TenantAdminDashboard = ({ organizationId }) => {
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
+              <Card className="border-l-4 border-l-teal-500 shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">Total Providers</CardTitle>
-                  <Stethoscope className="h-5 w-5 text-purple-500" />
+                  <Stethoscope className="h-5 w-5 text-teal-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-purple-600">{summary.total_providers || 0}</div>
+                  <div className="text-3xl font-bold text-teal-700">{summary.total_providers || 0}</div>
                   <p className="text-xs text-gray-500 mt-1">Healthcare professionals</p>
                 </CardContent>
               </Card>
@@ -247,14 +247,14 @@ const TenantAdminDashboard = ({ organizationId }) => {
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-indigo-500 shadow-md">
+              <Card className="border-l-4 border-l-teal-500 shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">Total Claims</CardTitle>
-                  <FileText className="h-5 w-5 text-indigo-500" />
+                  <FileText className="h-5 w-5 text-teal-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-indigo-600">{summary.total_claims || 0}</div>
-                  <p className="text-xs text-indigo-600 mt-1 flex items-center gap-1">
+                  <div className="text-3xl font-bold text-teal-700">{summary.total_claims || 0}</div>
+                  <p className="text-xs text-teal-700 mt-1 flex items-center gap-1">
                     <ArrowUpRight className="w-3 h-3" />
                     +{summary.claims_this_month || 0} this month
                   </p>
@@ -278,7 +278,7 @@ const TenantAdminDashboard = ({ organizationId }) => {
               <Card className="shadow-md">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                    <Pill className="w-4 h-4 text-blue-500" />
+                    <Pill className="w-4 h-4 text-teal-600" />
                     Prescriptions
                   </CardTitle>
                 </CardHeader>
@@ -304,7 +304,7 @@ const TenantAdminDashboard = ({ organizationId }) => {
               <Card className="shadow-md">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-purple-500" />
+                    <Activity className="w-4 h-4 text-teal-600" />
                     RPM Devices
                   </CardTitle>
                 </CardHeader>
@@ -363,7 +363,7 @@ const TenantAdminDashboard = ({ organizationId }) => {
               <Card className="shadow-md">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-blue-600" />
+                    <TrendingUp className="w-5 h-5 text-teal-700" />
                     Patient Growth
                   </CardTitle>
                   <CardDescription>Monthly patient and encounter trends</CardDescription>
@@ -404,7 +404,7 @@ const TenantAdminDashboard = ({ organizationId }) => {
             <Card className="shadow-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-purple-600" />
+                  <DollarSign className="w-5 h-5 text-teal-700" />
                   Revenue & Expenses
                 </CardTitle>
                 <CardDescription>Financial overview over time</CardDescription>
@@ -447,13 +447,13 @@ const TenantAdminDashboard = ({ organizationId }) => {
                           <div className="flex items-center gap-3">
                             <div className="w-32 bg-gray-200 rounded-full h-2">
                               <div 
-                                className="bg-blue-600 h-2 rounded-full" 
+                                className="bg-teal-600 h-2 rounded-full" 
                                 style={{ 
                                   width: `${Math.min((item.count / Math.max(...statistics.monthly_patients.map(m => m.count))) * 100, 100)}%` 
                                 }}
                               ></div>
                             </div>
-                            <span className="font-bold text-blue-600 min-w-[3rem] text-right">{item.count}</span>
+                            <span className="font-bold text-teal-700 min-w-[3rem] text-right">{item.count}</span>
                           </div>
                         </div>
                       ))}
@@ -510,9 +510,9 @@ const TenantAdminDashboard = ({ organizationId }) => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="text-sm font-medium text-blue-700 mb-1">Total Facilities</div>
-                    <div className="text-3xl font-bold text-blue-900">{statistics.facility_count || 0}</div>
+                  <div className="p-4 bg-teal-50 rounded-lg border border-teal-200">
+                    <div className="text-sm font-medium text-teal-800 mb-1">Total Facilities</div>
+                    <div className="text-3xl font-bold text-teal-900">{statistics.facility_count || 0}</div>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                     <div className="text-sm font-medium text-green-700 mb-1">Active Facilities</div>

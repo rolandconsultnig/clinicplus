@@ -34,6 +34,25 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 
+function getLoggedInDisplayName(user) {
+  if (!user) return 'User'
+  const fromPatientInfo = [user.patient_info?.first_name, user.patient_info?.last_name].filter(Boolean).join(' ').trim()
+  const fromProviderInfo = [user.provider_info?.first_name, user.provider_info?.last_name].filter(Boolean).join(' ').trim()
+  const fromPatientData = [user.patient_data?.first_name, user.patient_data?.last_name].filter(Boolean).join(' ').trim()
+  const fromProviderData = [user.provider_data?.first_name, user.provider_data?.last_name].filter(Boolean).join(' ').trim()
+  const fromNames =
+    user.display_name ||
+    user.full_name ||
+    fromPatientInfo ||
+    fromProviderInfo ||
+    fromPatientData ||
+    fromProviderData ||
+    (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}`.trim() : '')
+  const fallback = user.email || user.username || 'User'
+  const label = String(fromNames || fallback).trim()
+  return label || fallback
+}
+
 /**
  * Role-Based Portal Component
  * Displays different portal views based on user roles
@@ -133,9 +152,9 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
         completed_encounters: encounters.filter(e => e.status === 'completed').length
       },
       quickActions: [
-        { title: 'New Encounter', icon: FileText, action: () => onNavigate ? onNavigate('new-encounter') : navigate('/new-encounter'), color: 'bg-blue-600' },
+        { title: 'New Encounter', icon: FileText, action: () => onNavigate ? onNavigate('new-encounter') : navigate('/new-encounter'), color: 'bg-teal-600' },
         { title: 'Patient Search', icon: Users, action: () => onNavigate ? onNavigate('patient-search') : navigate('/patient-search'), color: 'bg-green-600' },
-        { title: 'Lab Orders', icon: TestTube, action: () => onNavigate ? onNavigate('lab-orders') : navigate('/lab-orders'), color: 'bg-purple-600' },
+        { title: 'Lab Orders', icon: TestTube, action: () => onNavigate ? onNavigate('lab-orders') : navigate('/lab-orders'), color: 'bg-teal-600' },
         { title: 'Prescriptions', icon: Pill, action: () => onNavigate ? onNavigate('prescriptions') : navigate('/prescriptions'), color: 'bg-orange-600' }
       ],
       recentActivity: appointments.slice(0, 5),
@@ -168,9 +187,9 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
         system_health: stats.system_health || 'healthy'
       },
       quickActions: [
-        { title: 'User Management', icon: Users, action: () => onNavigate ? onNavigate('user-management') : navigate('/user-management'), color: 'bg-blue-600' },
+        { title: 'User Management', icon: Users, action: () => onNavigate ? onNavigate('user-management') : navigate('/user-management'), color: 'bg-teal-600' },
         { title: 'Facility Management', icon: Building2, action: () => onNavigate ? onNavigate('facility-management') : navigate('/facility-management'), color: 'bg-green-600' },
-        { title: 'Security & Audit', icon: Shield, action: () => onNavigate ? onNavigate('security-audit') : navigate('/security-audit'), color: 'bg-purple-600' },
+        { title: 'Security & Audit', icon: Shield, action: () => onNavigate ? onNavigate('security-audit') : navigate('/security-audit'), color: 'bg-teal-600' },
         { title: 'System Settings', icon: Settings, action: () => onNavigate ? onNavigate('system-settings') : navigate('/system-settings'), color: 'bg-orange-600' }
       ],
       recentActivity: users.slice(0, 5),
@@ -203,9 +222,9 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
         pending_lab_results: 0
       },
       quickActions: [
-        { title: 'My Records', icon: FileText, action: () => onNavigate ? onNavigate('patient-data') : navigate('/patient-data'), color: 'bg-blue-600' },
+        { title: 'My Records', icon: FileText, action: () => onNavigate ? onNavigate('patient-data') : navigate('/patient-data'), color: 'bg-teal-600' },
         { title: 'Appointments', icon: Calendar, action: () => onNavigate ? onNavigate('scheduling') : navigate('/scheduling'), color: 'bg-green-600' },
-        { title: 'Prescriptions', icon: Pill, action: () => onNavigate ? onNavigate('prescriptions') : navigate('/prescriptions'), color: 'bg-purple-600' },
+        { title: 'Prescriptions', icon: Pill, action: () => onNavigate ? onNavigate('prescriptions') : navigate('/prescriptions'), color: 'bg-teal-600' },
         { title: 'Messages', icon: Bell, action: () => onNavigate ? onNavigate('messaging') : navigate('/messaging'), color: 'bg-orange-600' }
       ],
       recentActivity: appointments.slice(0, 5),
@@ -277,10 +296,10 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[40vh]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading portal...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-teal-100 border-t-teal-600 mx-auto mb-4" />
+          <p className="text-slate-600 text-sm">Loading workspace…</p>
         </div>
       </div>
     );
@@ -298,107 +317,86 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
     );
   }
 
-  const getRoleColor = (category) => {
-    switch (category) {
-      case 'clinical':
-        return 'from-blue-600 to-indigo-600';
-      case 'administrative':
-        return 'from-purple-600 to-pink-600';
-      case 'patient':
-        return 'from-green-600 to-emerald-600';
-      default:
-        return 'from-gray-600 to-gray-700';
-    }
-  };
+  const getStatAccent = () => 'from-teal-500 to-teal-700';
 
-  const getStatCardColor = (index) => {
-    const colors = [
-      'from-blue-500 to-blue-600',
-      'from-emerald-500 to-emerald-600',
-      'from-purple-500 to-purple-600',
-      'from-amber-500 to-amber-600',
-      'from-rose-500 to-rose-600',
-      'from-indigo-500 to-indigo-600'
-    ];
-    return colors[index % colors.length];
-  };
+  const isGenericWorkspace = portalData.category === 'default' || portalData.role === 'User'
+  const workspaceTitle = isGenericWorkspace
+    ? getLoggedInDisplayName(user)
+    : `${portalData.role} workspace`
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 p-6">
+    <div className="p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Professional Header */}
-        <div className={`relative bg-gradient-to-r ${getRoleColor(portalData.category)} rounded-2xl shadow-2xl p-8 text-white overflow-hidden`}>
-          <div className="absolute inset-0 bg-black/5"></div>
-          <div className="relative flex items-center justify-between">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="absolute left-0 top-0 h-full w-1.5 bg-teal-600" aria-hidden />
+          <div className="relative flex flex-col gap-4 p-6 pl-8 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg border border-white/30">
-                {portalData.category === 'clinical' && <Stethoscope className="w-8 h-8" />}
-                {portalData.category === 'administrative' && <Shield className="w-8 h-8" />}
-                {portalData.category === 'patient' && <Heart className="w-8 h-8" />}
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-md shadow-teal-900/15">
+                {portalData.category === 'clinical' && <Stethoscope className="w-7 h-7" />}
+                {portalData.category === 'administrative' && <Shield className="w-7 h-7" />}
+                {portalData.category === 'patient' && <Heart className="w-7 h-7" />}
+                {portalData.category === 'default' && <User className="w-7 h-7" />}
               </div>
               <div>
-                <h1 className="text-4xl font-bold tracking-tight mb-1">{portalData.role} Portal</h1>
-                <p className="text-white/90 text-lg font-medium">Welcome back, {user.username || 'User'}!</p>
-                <p className="text-white/70 text-sm mt-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">DigiClinic</p>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">{workspaceTitle}</h1>
+                <p className="text-slate-600 mt-1">
+                  Welcome back, <span className="font-medium text-slate-800">{getLoggedInDisplayName(user)}</span>
+                  <span className="text-slate-400"> · </span>
                   {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur-sm px-4 py-2 text-sm font-medium">
-                <Activity className="w-4 h-4 mr-2" />
-                {portalData.category === 'clinical' ? 'Clinical Portal' : 
-                 portalData.category === 'administrative' ? 'Admin Portal' : 
-                 'Patient Portal'}
-              </Badge>
-            </div>
+            <Badge variant="outline" className="w-fit border-teal-200 bg-teal-50 text-teal-900 px-3 py-1.5 text-xs font-medium">
+              <Activity className="w-3.5 h-3.5 mr-1.5 inline" />
+              {portalData.category === 'clinical' ? 'Clinical' :
+               portalData.category === 'administrative' ? 'Administration' :
+               portalData.category === 'patient' ? 'Patient' :
+               'Workspace'}
+            </Badge>
           </div>
         </div>
 
-        {/* Professional Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Object.entries(portalData.stats).map(([key, value], index) => {
-            // Format the key for display
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Object.entries(portalData.stats).map(([key, value]) => {
             const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            // Check if value is a status string (like 'healthy')
             const isStatus = typeof value === 'string' && ['healthy', 'active', 'inactive', 'warning', 'error'].includes(value.toLowerCase());
-            const statusColor = value === 'healthy' ? 'text-emerald-600' : value === 'active' ? 'text-blue-600' : 'text-gray-600';
-            
+            const statusColor = value === 'healthy' ? 'text-teal-700' : value === 'active' ? 'text-teal-700' : 'text-slate-600';
+            const accent = getStatAccent();
             return (
-              <Card key={key} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg overflow-hidden">
-                <div className={`absolute inset-0 bg-gradient-to-br ${getStatCardColor(index)} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
-                <CardContent className="p-6 relative">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              <Card key={key} className="group border border-slate-200 bg-white shadow-sm hover:border-teal-200 hover:shadow-md transition-all duration-200 overflow-hidden">
+                <CardContent className="p-5 relative">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                         {displayKey}
                       </p>
                       {isStatus ? (
                         <div className="flex items-center gap-2 mb-1">
-                          <div className={`w-3 h-3 rounded-full ${value === 'healthy' ? 'bg-emerald-500' : value === 'active' ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+                          <div className={`w-2.5 h-2.5 rounded-full ${value === 'healthy' ? 'bg-teal-500' : value === 'active' ? 'bg-teal-400' : 'bg-slate-300'}`} />
                           <p className={`text-2xl font-bold ${statusColor} capitalize`}>{value}</p>
                         </div>
                       ) : (
-                        <p className="text-4xl font-bold text-gray-900 mb-1">{value}</p>
+                        <p className="text-3xl font-bold text-slate-900 tabular-nums">{value}</p>
                       )}
                       {!isStatus && (
-                        <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                        <div className="flex items-center gap-1 text-xs text-teal-700/90 font-medium mt-1">
                           <TrendingUp className="w-3 h-3" />
-                          <span>Active</span>
+                          <span>Live</span>
                         </div>
                       )}
                     </div>
-                    <div className={`w-14 h-14 bg-gradient-to-br ${getStatCardColor(index)} rounded-xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300`}>
+                    <div className={`w-12 h-12 shrink-0 bg-gradient-to-br ${accent} rounded-lg flex items-center justify-center shadow-sm`}>
                       {key === 'system_health' ? (
-                        <CheckCircle2 className="w-7 h-7 text-white" />
+                        <CheckCircle2 className="w-6 h-6 text-white" />
                       ) : (
-                        <BarChart3 className="w-7 h-7 text-white" />
+                        <BarChart3 className="w-6 h-6 text-white" />
                       )}
                     </div>
                   </div>
                   {!isStatus && (
-                    <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                      <div className={`h-full bg-gradient-to-r ${getStatCardColor(index)} rounded-full`} style={{ width: '75%' }}></div>
+                    <div className="h-1 bg-slate-100 rounded-full overflow-hidden mt-4">
+                      <div className={`h-full bg-gradient-to-r ${accent} rounded-full`} style={{ width: '72%' }} />
                     </div>
                   )}
                 </CardContent>
@@ -407,38 +405,37 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
           })}
         </div>
 
-        {/* Professional Quick Actions */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
+        <Card className="border border-slate-200 bg-white shadow-sm">
+          <CardHeader className="pb-4 border-b border-slate-100">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-2xl font-bold text-gray-900">Quick Actions</CardTitle>
-                <CardDescription className="text-base mt-1">Access frequently used features</CardDescription>
+                <CardTitle className="text-xl font-semibold text-slate-900">Quick actions</CardTitle>
+                <CardDescription className="text-sm mt-1 text-slate-600">Shortcuts to common workflows</CardDescription>
               </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-teal-600 flex items-center justify-center shadow-sm">
                 <Activity className="w-5 h-5 text-white" />
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {portalData.quickActions.map((action, index) => {
+          <CardContent className="pt-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {portalData.quickActions.map((action, idx) => {
                 const Icon = action.icon;
                 return (
                   <button
-                    key={index}
+                    key={idx}
+                    type="button"
                     onClick={action.action}
-                    className={`group relative ${action.color} hover:shadow-2xl text-white p-6 rounded-xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 overflow-hidden`}
+                    className="group text-left rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40"
                   >
-                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-white/30 transition-colors">
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <p className="font-bold text-lg">{action.title}</p>
-                      <p className="text-white/80 text-sm mt-1">Click to access</p>
+                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-teal-50 text-teal-700 mb-3 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                      <Icon className="w-5 h-5" />
                     </div>
-                    <ArrowRight className="absolute bottom-4 right-4 w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1" />
+                    <p className="font-semibold text-slate-900">{action.title}</p>
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                      Open
+                      <ArrowRight className="w-3 h-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+                    </p>
                   </button>
                 );
               })}
@@ -470,15 +467,15 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
           {portalData.chartData && Object.keys(portalData.chartData).length > 0 && (
             <div className="lg:col-span-2 grid grid-cols-1 gap-6">
               {portalData.chartData.patientTrend && (
-                <Card className="border-0 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                  <CardHeader className="border-b border-gray-100 pb-4">
+                <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="border-b border-slate-100 pb-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-xl font-bold text-gray-900">Patient Trend</CardTitle>
-                        <CardDescription className="mt-1">7-day patient activity overview</CardDescription>
+                        <CardTitle className="text-lg font-semibold text-slate-900">Patient trend</CardTitle>
+                        <CardDescription className="mt-1 text-sm">7-day patient activity overview</CardDescription>
                       </div>
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-blue-600" />
+                      <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                        <TrendingUp className="w-5 h-5 text-teal-700" />
                       </div>
                     </div>
                   </CardHeader>
@@ -488,15 +485,15 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
                 </Card>
               )}
               {portalData.chartData.appointmentStatus && (
-                <Card className="border-0 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                  <CardHeader className="border-b border-gray-100 pb-4">
+                <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="border-b border-slate-100 pb-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-xl font-bold text-gray-900">Appointment Status</CardTitle>
-                        <CardDescription className="mt-1">Current appointment distribution</CardDescription>
+                        <CardTitle className="text-lg font-semibold text-slate-900">Appointment status</CardTitle>
+                        <CardDescription className="mt-1 text-sm">Current appointment distribution</CardDescription>
                       </div>
-                      <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                        <Calendar className="w-5 h-5 text-emerald-600" />
+                      <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                        <Calendar className="w-5 h-5 text-teal-700" />
                       </div>
                     </div>
                   </CardHeader>
@@ -513,15 +510,15 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
         {portalData.chartData && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {portalData.chartData.userDistribution && (
-              <Card className="border-0 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                <CardHeader className="border-b border-gray-100 pb-4">
+              <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <CardHeader className="border-b border-slate-100 pb-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-xl font-bold text-gray-900">User Distribution</CardTitle>
-                      <CardDescription className="mt-1">User types breakdown</CardDescription>
+                      <CardTitle className="text-lg font-semibold text-slate-900">User distribution</CardTitle>
+                      <CardDescription className="mt-1 text-sm">User types breakdown</CardDescription>
                     </div>
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Users className="w-5 h-5 text-purple-600" />
+                    <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                      <Users className="w-5 h-5 text-teal-700" />
                     </div>
                   </div>
                 </CardHeader>
@@ -531,15 +528,15 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
               </Card>
             )}
             {portalData.chartData.recordTypes && (
-              <Card className="border-0 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                <CardHeader className="border-b border-gray-100 pb-4">
+              <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <CardHeader className="border-b border-slate-100 pb-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-xl font-bold text-gray-900">Record Types</CardTitle>
-                      <CardDescription className="mt-1">Medical records distribution</CardDescription>
+                      <CardTitle className="text-lg font-semibold text-slate-900">Record types</CardTitle>
+                      <CardDescription className="mt-1 text-sm">Medical records distribution</CardDescription>
                     </div>
-                    <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-indigo-600" />
+                    <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-teal-700" />
                     </div>
                   </div>
                 </CardHeader>
@@ -567,45 +564,45 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
         </div>
 
         {/* Professional Recent Activity */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader className="border-b border-gray-100 pb-4">
+        <Card className="border border-slate-200 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-xl font-bold text-gray-900">Recent Activity</CardTitle>
-                <CardDescription className="text-base mt-1">Latest updates and events</CardDescription>
+                <CardTitle className="text-lg font-semibold text-slate-900">Recent activity</CardTitle>
+                <CardDescription className="text-sm mt-1 text-slate-600">Latest updates and events</CardDescription>
               </div>
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-teal-700" />
               </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
             {portalData.recentActivity && portalData.recentActivity.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {portalData.recentActivity.map((activity, index) => (
-                  <div 
-                    key={index} 
-                    className="group flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-xl hover:shadow-lg hover:border-blue-200 transition-all duration-300 cursor-pointer"
+                  <div
+                    key={index}
+                    className="group flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 hover:border-teal-200 hover:bg-white transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 shrink-0 rounded-lg bg-teal-600 flex items-center justify-center shadow-sm">
                         <Activity className="w-5 h-5 text-white" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{activity.title || activity.name || 'Activity'}</p>
-                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                          <Clock className="w-3 h-3" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-900 truncate">{activity.title || activity.name || 'Activity'}</p>
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3 shrink-0" />
                           {activity.date || activity.appointment_date || 'No date'}
                         </p>
                       </div>
                     </div>
-                    <Badge 
-                      variant="outline" 
-                      className={`${
-                        activity.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                        activity.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-blue-50 text-blue-700 border-blue-200'
-                      } font-medium`}
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 ${
+                        activity.status === 'completed' ? 'bg-teal-50 text-teal-800 border-teal-200' :
+                        activity.status === 'pending' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                        'bg-slate-50 text-slate-700 border-slate-200'
+                      } text-xs font-medium`}
                     >
                       {activity.status || 'Active'}
                     </Badge>
@@ -614,11 +611,11 @@ const RoleBasedPortal = ({ user, onNavigate }) => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Activity className="w-8 h-8 text-gray-400" />
+                <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Activity className="w-7 h-7 text-slate-400" />
                 </div>
-                <p className="text-gray-500 font-medium">No recent activity</p>
-                <p className="text-sm text-gray-400 mt-1">Activity will appear here as it happens</p>
+                <p className="text-slate-600 font-medium">No recent activity</p>
+                <p className="text-sm text-slate-500 mt-1">Activity will appear here as it happens</p>
               </div>
             )}
           </CardContent>

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react';
-import { cn } from '../utils.js';
+import { cn } from '../../utils.js';
 
 const ToastContext = createContext();
 
@@ -68,7 +68,7 @@ function Toast({ toast, onClose }) {
   const colors = {
     success: 'bg-green-500 text-white',
     error: 'bg-red-500 text-white',
-    info: 'bg-blue-500 text-white',
+    info: 'bg-teal-600 text-white',
     warning: 'bg-yellow-500 text-white',
   };
 

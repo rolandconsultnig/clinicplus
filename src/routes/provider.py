@@ -11,6 +11,36 @@ import datetime
 
 provider_bp = Blueprint('provider', __name__)
 
+@provider_bp.route('/facilities/by-subdomain/<subdomain>', methods=['GET'])
+def get_facility_by_subdomain(subdomain):
+    """
+    Get facility by subdomain (public endpoint for multi-tenant landing pages)
+    
+    Multi-Tenant Architecture:
+    - Each facility gets its own subdomain: [facility_name].clinicplus.org
+    - Development: [facility_name].localhost:4305 (clinicplus.org maps to localhost:4305)
+    - Production: [facility_name].clinicplus.org
+    - The subdomain (facility_id) identifies the tenant for data isolation
+    """
+    try:
+        # Find facility by facility_id (which serves as subdomain identifier)
+        # This enables multi-tenant architecture where each facility is a separate tenant
+        facility = Facility.query.filter_by(facility_id=subdomain.lower(), is_active=True).first()
+        
+        if not facility:
+            return jsonify({
+                'success': False,
+                'error': 'Facility not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'facility': facility.to_dict()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @provider_bp.route('/providers', methods=['GET', 'POST'])
 @token_required
 def providers():

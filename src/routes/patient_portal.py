@@ -219,7 +219,7 @@ def get_patient_prescriptions():
 def request_prescription_refill(prescription_id):
     """Request prescription refill"""
     try:
-        from src.models.prescribing import Prescription, PrescriptionRefillRequest
+        from src.models.prescribing import Prescription
         
         user = request.current_user
         prescription = Prescription.query.get_or_404(prescription_id)
@@ -232,22 +232,24 @@ def request_prescription_refill(prescription_id):
         if prescription.status not in ['active', 'refillable']:
             return jsonify({'error': 'Prescription is not refillable'}), 400
         
-        # Create refill request
-        refill_request = PrescriptionRefillRequest(
-            prescription_id=prescription.id,
+        # Persist refill request as a portal message to care team/pharmacy queue
+        refill_message = PortalMessage(
             patient_id=user.patient_id,
-            request_date=datetime.utcnow(),
-            status='pending',
-            requested_by=user.id
+            provider_id=prescription.provider_id,
+            facility_id=user.facility_id,
+            subject=f"Refill request for {prescription.drug_name}",
+            message_body=f"Patient requested refill for prescription {prescription.prescription_id}.",
+            message_type='refill_request',
+            is_from_patient=True,
+            related_prescription_id=prescription.id
         )
-        
-        db.session.add(refill_request)
+        db.session.add(refill_message)
         db.session.commit()
         
         return jsonify({
             'success': True,
             'message': 'Refill request submitted successfully',
-            'refill_request': refill_request.to_dict() if hasattr(refill_request, 'to_dict') else {'id': refill_request.id}
+            'refill_request': refill_message.to_dict()
         }), 201
         
     except Exception as e:
@@ -294,17 +296,30 @@ def upload_patient_document():
         
         # Save file
         file.save(file_path)
+
+        facility_id = request.token_payload.get('facility_id') or getattr(user, 'facility_id', None)
+        if not facility_id:
+            from src.models.patient import Patient
+            patient = Patient.query.get(patient_id)
+            facility_id = patient.facility_id if patient else None
+        if not facility_id:
+            return jsonify({'error': 'Facility context required for document upload'}), 400
         
         # Create document record
         document = Document(
             document_id=f"DOC-{uuid.uuid4().hex[:8].upper()}",
+            title=request.form.get('title') or filename,
             patient_id=patient_id,
             document_type=document_type,
-            document_name=filename,
+            category=request.form.get('category') or 'patient_upload',
+            file_name=filename,
             file_path=file_path,
             file_size=os.path.getsize(file_path),
-            uploaded_by=user.id,
-            uploaded_at=datetime.utcnow()
+            facility_id=facility_id,
+            created_by=user.id,
+            source='uploaded',
+            status='active',
+            workflow_status='approved'
         )
         
         db.session.add(document)
@@ -327,7 +342,6 @@ def get_health_metrics():
     """Get patient health metrics"""
     try:
         from src.models.clinical import VitalSigns
-        from src.models.patient import HealthMetric
         
         user = request.current_user
         patient_id = request.args.get('patient_id', user.patient_id, type=int)
@@ -345,9 +359,10 @@ def get_health_metrics():
             VitalSigns.recorded_at >= thirty_days_ago
         ).order_by(VitalSigns.recorded_at.desc()).all()
         
-        # Try to get health metrics if model exists
+        # Try to get optional health metrics model if available
         health_metrics = []
         try:
+            from src.models.patient import HealthMetric
             health_metrics = HealthMetric.query.filter_by(
                 patient_id=patient_id
             ).order_by(HealthMetric.recorded_date.desc()).limit(30).all()
@@ -388,16 +403,86 @@ def download_patient_record(record_id):
         if user.user_type == 'Patient' and document.patient_id != user.patient_id:
             return jsonify({'error': 'Unauthorized'}), 403
         
-        # In production, generate signed URL for secure download
-        # For now, return file path
+        # Return API URL for authenticated document streaming/downloading.
         download_url = f"/api/documents/download/{document.document_id}"
         
         return jsonify({
             'success': True,
             'url': download_url,
-            'document_name': document.document_name,
+            'document_name': document.file_name,
             'file_size': document.file_size
         }), 200
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@portal_bp.route('/portal/self-service/balance', methods=['GET'])
+@token_required
+@role_required(['Patient', 'patient'])
+def portal_self_balance():
+    """Open statements / estimated balance."""
+    try:
+        from src.models.billing import Statement
+        user = request.current_user
+        pid = user.patient_id
+        if not pid:
+            return jsonify({'error': 'No patient link'}), 400
+        stmts = Statement.query.filter_by(patient_id=pid, status='open').all()
+        total = sum(float(s.balance_due) for s in stmts) if stmts else 0.0
+        return jsonify({
+            'success': True,
+            'open_statements': [s.to_dict() for s in stmts],
+            'total_open_balance': total,
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@portal_bp.route('/portal/self-service/appointments', methods=['POST'])
+@token_required
+@role_required(['Patient', 'patient'])
+def portal_self_book_appointment():
+    """Self-service appointment booking."""
+    try:
+        from src.models.scheduling import Appointment
+        from src.models.auth import UserAccount
+        data = request.get_json() or {}
+        user = request.current_user
+        ua = UserAccount.query.get(user.id)
+        pid = user.patient_id
+        if not pid:
+            return jsonify({'error': 'No patient context'}), 400
+        provider_id = data.get('provider_id')
+        facility_id = data.get('facility_id') or ua.facility_id
+        apd = data.get('appointment_date')
+        apt = data.get('appointment_time')
+        if not all([provider_id, facility_id, apd, apt]):
+            return jsonify({
+                'error': 'provider_id, facility_id, appointment_date, appointment_time required',
+            }), 400
+        from datetime import date as ddate, time as dtime
+        ad = ddate.fromisoformat(str(apd)) if not isinstance(apd, ddate) else apd
+        if isinstance(apt, str) and len(apt) >= 4:
+            parts = str(apt).replace('.', ':').split(':')
+            h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+            at = dtime(h, m)
+        else:
+            at = apt
+        ap = Appointment(
+            appointment_id=f"APT-SR-{uuid.uuid4().hex[:10].upper()}",
+            patient_id=pid,
+            provider_id=provider_id,
+            facility_id=facility_id,
+            appointment_type=data.get('appointment_type', 'follow_up'),
+            appointment_date=ad,
+            appointment_time=at,
+            status='scheduled',
+            reason_for_visit=data.get('reason_for_visit', 'Patient self-service booking'),
+        )
+        db.session.add(ap)
+        db.session.commit()
+        return jsonify({'success': True, 'appointment': ap.to_dict()}), 201
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500

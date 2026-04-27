@@ -181,16 +181,16 @@ const CalendarWidget = ({ userId, providerId, facilityId, compact = false, onApp
         <CardContent>
           {loading ? (
             <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600 mx-auto"></div>
             </div>
           ) : todayAppointments.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-4">No appointments today</p>
           ) : (
             <div className="space-y-2">
               {todayAppointments.slice(0, 3).map((apt, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                <div key={idx} className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-600" />
+                    <Clock className="w-4 h-4 text-teal-700" />
                     <span className="text-sm font-medium">{apt.appointment_time || 'N/A'}</span>
                   </div>
                   <span className="text-sm text-gray-600">{apt.patient_name || 'Patient'}</span>
@@ -233,7 +233,7 @@ const CalendarWidget = ({ userId, providerId, facilityId, compact = false, onApp
       <CardContent>
         {loading ? (
           <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
           </div>
         ) : (
           <>
@@ -255,8 +255,8 @@ const CalendarWidget = ({ userId, providerId, facilityId, compact = false, onApp
                     className={`
                       min-h-[40px] p-1 border rounded cursor-pointer transition-colors
                       ${!date ? 'bg-gray-50' : ''}
-                      ${isToday(date) ? 'bg-blue-100 border-blue-500' : ''}
-                      ${isSelected(date) && date ? 'ring-2 ring-blue-500' : ''}
+                      ${isToday(date) ? 'bg-teal-100 border-teal-500' : ''}
+                      ${isSelected(date) && date ? 'ring-2 ring-teal-500' : ''}
                       ${date ? 'hover:bg-gray-50' : ''}
                     `}
                   >
@@ -289,7 +289,7 @@ const CalendarWidget = ({ userId, providerId, facilityId, compact = false, onApp
                   <Button
                     size="sm"
                     onClick={() => setShowBookingForm(true)}
-                    className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                    className="bg-gradient-to-r from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800"
                   >
                     <Plus className="w-4 h-4 mr-1" />
                     Book
@@ -298,7 +298,7 @@ const CalendarWidget = ({ userId, providerId, facilityId, compact = false, onApp
 
                 {/* Booking Form */}
                 {showBookingForm && (
-                  <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="mb-4 p-4 bg-teal-50 rounded-lg border border-teal-200">
                     <div className="flex items-center justify-between mb-3">
                       <h5 className="font-semibold text-sm text-gray-900">Book New Appointment</h5>
                       <Button variant="ghost" size="sm" onClick={() => setShowBookingForm(false)}>
@@ -311,7 +311,7 @@ const CalendarWidget = ({ userId, providerId, facilityId, compact = false, onApp
                         <select
                           value={bookingData.patient_id}
                           onChange={(e) => setBookingData({ ...bookingData, patient_id: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                           required
                         >
                           <option value="">Select Patient</option>
@@ -337,7 +337,7 @@ const CalendarWidget = ({ userId, providerId, facilityId, compact = false, onApp
                         <select
                           value={bookingData.appointment_type}
                           onChange={(e) => setBookingData({ ...bookingData, appointment_type: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                         >
                           <option value="consultation">Consultation</option>
                           <option value="follow-up">Follow-up</option>
@@ -357,7 +357,7 @@ const CalendarWidget = ({ userId, providerId, facilityId, compact = false, onApp
                       <Button
                         onClick={handleBookAppointment}
                         disabled={bookingLoading}
-                        className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                        className="w-full bg-gradient-to-r from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800"
                       >
                         {bookingLoading ? 'Booking...' : 'Book Appointment'}
                       </Button>

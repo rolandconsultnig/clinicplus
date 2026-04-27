@@ -3,12 +3,33 @@
  * Replaces MockAuth with actual backend API calls
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// Use relative URL to work with Vite proxy for subdomain support
+// In development: /api -> proxies to http://localhost:4300/api
+// In production: /api -> same origin backend
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 class ApiService {
   constructor() {
     this.token = localStorage.getItem('auth_token') || null;
     this.user = JSON.parse(localStorage.getItem('auth_user') || 'null');
+  }
+
+  normalizeEndpoint(endpoint) {
+    let normalized = `${endpoint || ''}`.trim();
+    if (!normalized) return '';
+    if (!normalized.startsWith('/')) {
+      normalized = `/${normalized}`;
+    }
+    while (normalized.startsWith('/api/api/')) {
+      normalized = normalized.replace('/api/api/', '/api/');
+    }
+    if (normalized === '/api') {
+      return '';
+    }
+    if (normalized.startsWith('/api/')) {
+      normalized = normalized.slice(4);
+    }
+    return normalized;
   }
 
   /**
@@ -53,15 +74,51 @@ class ApiService {
   /**
    * Make API request
    */
-  async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+  async request(endpoint, optionsOrMethod = {}, legacyPayload = undefined) {
+    let normalizedEndpoint = this.normalizeEndpoint(endpoint);
+    const options = typeof optionsOrMethod === 'string'
+      ? { method: optionsOrMethod }
+      : { ...(optionsOrMethod || {}) };
+    const method = `${options.method || 'GET'}`.toUpperCase();
+    if (legacyPayload !== undefined && options.body === undefined) {
+      const shouldEncodeAsQuery =
+        (method === 'GET' || method === 'HEAD') &&
+        legacyPayload &&
+        typeof legacyPayload === 'object' &&
+        !(legacyPayload instanceof FormData);
+      if (shouldEncodeAsQuery) {
+        const queryParams = new URLSearchParams(
+          Object.entries(legacyPayload).filter(([, value]) => value !== undefined && value !== null)
+        ).toString();
+        if (queryParams) {
+          normalizedEndpoint = `${normalizedEndpoint}${normalizedEndpoint.includes('?') ? '&' : '?'}${queryParams}`;
+        }
+      } else {
+        options.body = legacyPayload instanceof FormData
+          ? legacyPayload
+          : JSON.stringify(legacyPayload);
+      }
+    }
+
+    const includeAuth = options.auth !== false;
+    if (includeAuth && !this.token) {
+      const error = new Error('Authentication required. Please login again.');
+      error.status = 401;
+      throw error;
+    }
+
+    const url = `${API_BASE_URL}${normalizedEndpoint}`;
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const config = {
       ...options,
       headers: {
-        ...this.getHeaders(options.auth !== false),
+        ...this.getHeaders(includeAuth),
         ...options.headers,
       },
     };
+    if (isFormData) {
+      delete config.headers['Content-Type'];
+    }
 
     try {
       const response = await fetch(url, config);
@@ -87,8 +144,15 @@ class ApiService {
       if (!response.ok) {
         // Handle 401 Unauthorized - token expired or invalid
         if (response.status === 401) {
-          // Only clear tokens if we're not already logged out
-          if (this.token) {
+          const authErrorText = `${data?.error || data?.message || ''}`.toLowerCase();
+          const shouldClearToken = this.token && (
+            normalizedEndpoint.startsWith('/auth/jwt/profile') ||
+            normalizedEndpoint.startsWith('/auth/jwt/refresh-token') ||
+            authErrorText.includes('expired') ||
+            authErrorText.includes('invalid token') ||
+            authErrorText.includes('invalid signature')
+          );
+          if (shouldClearToken) {
             this.setToken(null);
             this.setUser(null);
           }
@@ -210,9 +274,13 @@ class ApiService {
         return { success: true, user: data.user };
       }
 
-      return { success: false, error: data.error || 'Failed to get profile' };
+      return { success: false, error: data.error || 'Failed to get profile', status: data.status };
     } catch (error) {
-      return { success: false, error: error.message || 'Failed to get profile' };
+      return {
+        success: false,
+        error: error.message || 'Failed to get profile',
+        status: error.status,
+      };
     }
   }
 

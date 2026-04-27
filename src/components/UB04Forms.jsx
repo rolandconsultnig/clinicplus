@@ -140,7 +140,7 @@ const UB04Forms = ({ patientId }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'submitted': return 'bg-green-100 text-green-800';
-      case 'accepted': return 'bg-blue-100 text-blue-800';
+      case 'accepted': return 'bg-teal-100 text-teal-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'draft': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -246,7 +246,7 @@ const UB04Forms = ({ patientId }) => {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
               <p className="text-gray-600 mt-2">Loading UB-04 forms...</p>
             </div>
           ) : forms.length === 0 ? (

@@ -1,0 +1,37 @@
+/**
+ * DigiClinic — clinical workspace surface tokens (used with Tailwind).
+ */
+:root {
+  --dc-teal: #0d9488;
+  --dc-teal-dark: #0f766e;
+  --dc-teal-soft: #ccfbf1;
+  --dc-canvas: #f1f5f9;
+  --dc-sidebar: #0f172a;
+  --dc-sidebar-border: #1e293b;
+}
+
+.digiclinic-app {
+  color: #0f172a;
+  /* Defaults until JS applies ACCENT_PRESETS on this node */
+  --dc-accent: #0d9488;
+  --dc-accent-hover: #0f766e;
+  --dc-accent-soft: #5eead4;
+  --dc-ring: rgba(20, 184, 166, 0.45);
+}
+
+/**
+ * Main content canvas — default background until React applies inline style from PersonalizationContext.
+ */
+.digiclinic-main-area {
+  min-height: calc(100vh - 3.25rem);
+  width: 100%;
+  min-width: 0;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 40%, #ecfdf5 100%);
+}
+
+/* Header accent follows --dc-accent (set by PersonalizationContext) */
+.dc-header-accent-bar {
+  border-bottom-width: 2px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--dc-accent, #0d9488);
+}

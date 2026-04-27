@@ -2,6 +2,7 @@
 Clinical Encounter and Related Models
 """
 from datetime import datetime
+import json
 from src.models.user import db
 
 class ClinicalEncounter(db.Model):
@@ -288,6 +289,122 @@ class LabResult(db.Model):
             'interpretation': self.interpretation,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class LabSpecimen(db.Model):
+    __tablename__ = 'lab_specimens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    accession_number = db.Column(db.String(60), unique=True, nullable=False, index=True)
+    lab_order_id = db.Column(db.Integer, db.ForeignKey('lab_orders.id'), nullable=False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
+    specimen_type = db.Column(db.String(120), nullable=True)
+    collection_time = db.Column(db.DateTime, default=datetime.utcnow)
+    collected_by = db.Column(db.String(120), nullable=True)
+    status = db.Column(db.String(40), default='collected')  # collected, received, processing, completed, rejected
+    current_location = db.Column(db.String(120), nullable=True)
+    storage_temp = db.Column(db.String(40), nullable=True)
+    custody_log_json = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    lab_order = db.relationship('LabOrder')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'accession_number': self.accession_number,
+            'lab_order_id': self.lab_order_id,
+            'patient_id': self.patient_id,
+            'specimen_type': self.specimen_type,
+            'collection_time': self.collection_time.isoformat() if self.collection_time else None,
+            'collected_by': self.collected_by,
+            'status': self.status,
+            'current_location': self.current_location,
+            'storage_temp': self.storage_temp,
+            'custody_log': json.loads(self.custody_log_json) if self.custody_log_json else [],
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class LabQCRecord(db.Model):
+    __tablename__ = 'lab_qc_records'
+
+    id = db.Column(db.Integer, primary_key=True)
+    analyzer = db.Column(db.String(120), nullable=False)
+    parameter = db.Column(db.String(100), nullable=False)
+    control_level = db.Column(db.String(60), nullable=True)
+    expected_value = db.Column(db.String(60), nullable=True)
+    measured_value = db.Column(db.String(60), nullable=True)
+    status = db.Column(db.String(20), default='pass')  # pass, fail, warning
+    recorded_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    recorded_by = db.Column(db.Integer, db.ForeignKey('user_accounts.id'), nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'analyzer': self.analyzer,
+            'parameter': self.parameter,
+            'control_level': self.control_level,
+            'expected_value': self.expected_value,
+            'measured_value': self.measured_value,
+            'status': self.status,
+            'timestamp': self.recorded_at.isoformat() if self.recorded_at else None,
+        }
+
+
+class LabInventoryItem(db.Model):
+    __tablename__ = 'lab_inventory_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    item = db.Column(db.String(160), nullable=False)
+    stock = db.Column(db.Integer, default=0)
+    reorder_level = db.Column(db.Integer, default=0)
+    expiry_date = db.Column(db.Date, nullable=True)
+    unit = db.Column(db.String(30), default='units')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        status = 'ok'
+        if (self.stock or 0) <= (self.reorder_level or 0):
+            status = 'low'
+        return {
+            'id': self.id,
+            'item': self.item,
+            'stock': self.stock or 0,
+            'reorder_level': self.reorder_level or 0,
+            'expiry_date': self.expiry_date.isoformat() if self.expiry_date else None,
+            'status': status,
+        }
+
+
+class SOAPTemplate(db.Model):
+    __tablename__ = 'soap_templates'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False)
+    specialty = db.Column(db.String(120), nullable=True)
+    subjective = db.Column(db.Text, nullable=True)
+    objective = db.Column(db.Text, nullable=True)
+    assessment = db.Column(db.Text, nullable=True)
+    plan = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('user_accounts.id'), nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'specialty': self.specialty,
+            'subjective': self.subjective,
+            'objective': self.objective,
+            'assessment': self.assessment,
+            'plan': self.plan,
+            'is_active': self.is_active,
         }
 
 # Cross-facility access model

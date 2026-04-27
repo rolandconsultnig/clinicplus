@@ -2,7 +2,10 @@
 Reports Routes - Comprehensive OpenEMR-style reporting system
 Includes clinical reports, patient reports, visit reports, financial reports, inventory reports
 """
-from flask import Blueprint, request, jsonify
+import csv
+from io import StringIO
+
+from flask import Blueprint, request, jsonify, Response
 from src.models.patient import Patient, MedicalHistory, Allergy, Medication
 from src.models.clinical import ClinicalEncounter, LabResult, LabOrder
 from src.models.scheduling import Appointment
@@ -219,7 +222,7 @@ def get_encounters_report():
 # Financial Reports
 @reports_bp.route('/collections', methods=['GET'])
 @token_required
-@role_required(['Billing Staff', 'System Administrator'])
+@role_required(['Billing Staff', 'System Administrator', 'admin', 'billing', 'receptionist'])
 def get_collections_report():
     """Get collections and aging report"""
     try:
@@ -284,7 +287,7 @@ def get_collections_report():
 
 @reports_bp.route('/sales-by-item', methods=['GET'])
 @token_required
-@role_required(['Billing Staff', 'System Administrator'])
+@role_required(['Billing Staff', 'System Administrator', 'admin', 'billing'])
 def get_sales_by_item():
     """Get sales by item report"""
     try:
@@ -336,65 +339,91 @@ def get_sales_by_item():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def _build_patient_ledger(patient_id):
+    """Return (patient dict, ledger_entries list, current_balance). Oldest-first for running balance."""
+    patient = Patient.query.get_or_404(patient_id)
+    charges = Charge.query.filter_by(patient_id=patient_id).all()
+    payments = Payment.query.filter_by(patient_id=patient_id).all()
+
+    ledger_entries = []
+    for charge in charges:
+        ledger_entries.append({
+            'date': charge.charge_date.isoformat() if charge.charge_date else None,
+            'type': 'charge',
+            'description': f"Charge #{charge.charge_id} (code {charge.billing_code_id})",
+            'debit': float(charge.total_amount),
+            'credit': 0.0,
+            'balance': 0.0,
+        })
+    for payment in payments:
+        amt = float(payment.payment_amount) if payment.payment_amount else 0.0
+        ledger_entries.append({
+            'date': payment.payment_date.isoformat() if payment.payment_date else None,
+            'type': 'payment',
+            'description': f"Payment {payment.payment_id} ({payment.payment_method})",
+            'debit': 0.0,
+            'credit': amt,
+            'balance': 0.0,
+        })
+
+    ledger_entries.sort(key=lambda x: x['date'] or '')
+    balance = 0.0
+    for entry in ledger_entries:
+        balance += entry['debit'] - entry['credit']
+        entry['balance'] = balance
+
+    return patient.to_dict(), ledger_entries, balance
+
+
 @reports_bp.route('/patient-ledger/<int:patient_id>', methods=['GET'])
 @token_required
-@role_required(['Billing Staff', 'System Administrator'])
+@role_required(['Billing Staff', 'System Administrator', 'admin', 'billing', 'receptionist'])
 def get_patient_ledger(patient_id):
     """Get patient ledger (account statement)"""
     try:
-        patient = Patient.query.get_or_404(patient_id)
-        
-        # Get all charges
-        charges = Charge.query.filter_by(patient_id=patient_id).order_by(Charge.charge_date.desc()).all()
-        
-        # Get all payments
-        payments = Payment.query.filter_by(patient_id=patient_id).order_by(Payment.payment_date.desc()).all()
-        
-        # Get allocations
-        from src.models.billing import PaymentAllocation
-        allocations = PaymentAllocation.query.join(Payment).filter(Payment.patient_id == patient_id).all()
-        
-        # Build ledger
-        ledger_entries = []
-        
-        # Add charges
-        for charge in charges:
-            ledger_entries.append({
-                'date': charge.charge_date.isoformat() if charge.charge_date else None,
-                'type': 'charge',
-                'description': f"Charge: {charge.billing_code_id}",
-                'debit': float(charge.total_amount),
-                'credit': 0,
-                'balance': 0  # Will calculate
-            })
-        
-        # Add payments
-        for payment in payments:
-            ledger_entries.append({
-                'date': payment.payment_date.isoformat() if payment.payment_date else None,
-                'type': 'payment',
-                'description': f"Payment: {payment.payment_method}",
-                'debit': 0,
-                'credit': float(payment.amount),
-                'balance': 0  # Will calculate
-            })
-        
-        # Sort by date
-        ledger_entries.sort(key=lambda x: x['date'] or '', reverse=True)
-        
-        # Calculate running balance
-        balance = 0
-        for entry in ledger_entries:
-            balance += entry['debit'] - entry['credit']
-            entry['balance'] = balance
-        
+        patient_dict, ledger_entries, balance = _build_patient_ledger(patient_id)
         return jsonify({
             'success': True,
-            'patient': patient.to_dict(),
+            'patient': patient_dict,
             'ledger': ledger_entries,
             'current_balance': balance
         }), 200
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@reports_bp.route('/patient-ledger/<int:patient_id>/export.csv', methods=['GET'])
+@token_required
+@role_required(['Billing Staff', 'System Administrator', 'admin', 'billing', 'receptionist'])
+def export_patient_ledger_csv(patient_id):
+    """Download patient ledger as CSV (spreadsheet-friendly)."""
+    try:
+        patient_dict, ledger_entries, balance = _build_patient_ledger(patient_id)
+        buf = StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(['Patient ledger export'])
+        writer.writerow(['Patient ID', patient_id])
+        writer.writerow(['Name', f"{patient_dict.get('first_name', '')} {patient_dict.get('last_name', '')}".strip()])
+        writer.writerow(['Current balance', f'{balance:.2f}'])
+        writer.writerow([])
+        writer.writerow(['Date', 'Type', 'Description', 'Debit', 'Credit', 'Running balance'])
+        for row in ledger_entries:
+            writer.writerow([
+                row['date'] or '',
+                row['type'],
+                row['description'],
+                f"{row['debit']:.2f}",
+                f"{row['credit']:.2f}",
+                f"{row['balance']:.2f}",
+            ])
+        csv_data = buf.getvalue()
+        fname = f"patient-{patient_id}-ledger.csv"
+        return Response(
+            csv_data,
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename="{fname}"'},
+        )
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -1,0 +1,521 @@
+{
+  "generated_at": "2026-04-15T20:20:23.539394+00:00",
+  "rows": [
+    {
+      "portal": "Receptionist",
+      "feature": "Registration, appointment, OPD queue",
+      "frontend": [
+        "ReceptionistDashboard",
+        "OPDQueueManagement",
+        "SchedulingCalendar"
+      ],
+      "backend": [
+        "receptionist.py",
+        "opd.py",
+        "scheduling.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "ReceptionistDashboard": true,
+        "OPDQueueManagement": true,
+        "SchedulingCalendar": true
+      },
+      "backend_presence": {
+        "receptionist.py": true,
+        "opd.py": true,
+        "scheduling.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Receptionist",
+      "feature": "Admission conversion and discharge handover",
+      "frontend": [
+        "ReceptionistDashboard",
+        "OPDQueueManagement"
+      ],
+      "backend": [
+        "opd.py",
+        "receptionist.py"
+      ],
+      "target_status": "in_progress",
+      "status": "implemented",
+      "frontend_presence": {
+        "ReceptionistDashboard": true,
+        "OPDQueueManagement": true
+      },
+      "backend_presence": {
+        "opd.py": true,
+        "receptionist.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Receptionist",
+      "feature": "Basic eligibility and billing assist",
+      "frontend": [
+        "PaymentProcessing",
+        "BillingManagement"
+      ],
+      "backend": [
+        "payments.py",
+        "insurance.py",
+        "billing_management.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "PaymentProcessing": true,
+        "BillingManagement": true
+      },
+      "backend_presence": {
+        "payments.py": true,
+        "insurance.py": true,
+        "billing_management.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Nursing",
+      "feature": "Ward/bed dashboard and patient status",
+      "frontend": [
+        "ProviderDashboards",
+        "PatientFlowBoard"
+      ],
+      "backend": [
+        "provider_workflows.py",
+        "patient_flow_board.py"
+      ],
+      "target_status": "in_progress",
+      "status": "implemented",
+      "frontend_presence": {
+        "ProviderDashboards": true,
+        "PatientFlowBoard": true
+      },
+      "backend_presence": {
+        "provider_workflows.py": true,
+        "patient_flow_board.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Nursing",
+      "feature": "Vitals trend and observation alerts",
+      "frontend": [
+        "ProviderDashboards",
+        "HealthDataManagement"
+      ],
+      "backend": [
+        "provider_workflows.py",
+        "iot_vitals.py",
+        "medical_data.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "ProviderDashboards": true,
+        "HealthDataManagement": true
+      },
+      "backend_presence": {
+        "provider_workflows.py": true,
+        "iot_vitals.py": true,
+        "medical_data.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Nursing",
+      "feature": "MAR and medication administration workflow",
+      "frontend": [
+        "ProviderDashboards",
+        "NursingMARWorkflow"
+      ],
+      "backend": [
+        "provider_workflows.py",
+        "prescribing.py"
+      ],
+      "target_status": "in_progress",
+      "status": "in_progress",
+      "frontend_presence": {
+        "ProviderDashboards": true,
+        "NursingMARWorkflow": true
+      },
+      "backend_presence": {
+        "provider_workflows.py": true,
+        "prescribing.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Doctors",
+      "feature": "My patients and encounter workflow",
+      "frontend": [
+        "DoctorConsultationPage",
+        "ProviderDashboards",
+        "PatientSearch"
+      ],
+      "backend": [
+        "doctor_consultation.py",
+        "provider_workflows.py",
+        "encounter_management.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "DoctorConsultationPage": true,
+        "ProviderDashboards": true,
+        "PatientSearch": true
+      },
+      "backend_presence": {
+        "doctor_consultation.py": true,
+        "provider_workflows.py": true,
+        "encounter_management.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Doctors",
+      "feature": "Order entry (labs/radiology/referrals)",
+      "frontend": [
+        "DoctorConsultationPage",
+        "LabOrders",
+        "LaboratoryModule"
+      ],
+      "backend": [
+        "doctor_consultation.py",
+        "provider_workflows.py",
+        "laboratory.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "DoctorConsultationPage": true,
+        "LabOrders": true,
+        "LaboratoryModule": true
+      },
+      "backend_presence": {
+        "doctor_consultation.py": true,
+        "provider_workflows.py": true,
+        "laboratory.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Doctors",
+      "feature": "Clinical documentation (SOAP/progress/discharge)",
+      "frontend": [
+        "SOAPNotes",
+        "DoctorConsultationPage"
+      ],
+      "backend": [
+        "soap_notes.py",
+        "doctor_consultation.py",
+        "opd.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "SOAPNotes": true,
+        "DoctorConsultationPage": true
+      },
+      "backend_presence": {
+        "soap_notes.py": true,
+        "doctor_consultation.py": true,
+        "opd.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Doctors",
+      "feature": "Schedule and telemedicine",
+      "frontend": [
+        "SchedulingCalendar"
+      ],
+      "backend": [
+        "scheduling.py"
+      ],
+      "target_status": "in_progress",
+      "status": "implemented",
+      "frontend_presence": {
+        "SchedulingCalendar": true
+      },
+      "backend_presence": {
+        "scheduling.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Lab Technician",
+      "feature": "Order queue, accessioning, results, QC",
+      "frontend": [
+        "LaboratoryModule",
+        "LabManagement"
+      ],
+      "backend": [
+        "laboratory.py",
+        "lab_management.py",
+        "provider_workflows.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "LaboratoryModule": true,
+        "LabManagement": true
+      },
+      "backend_presence": {
+        "laboratory.py": true,
+        "lab_management.py": true,
+        "provider_workflows.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Pharmacist",
+      "feature": "eRx queue, dispense, inventory, reconciliation",
+      "frontend": [
+        "PharmacyPOS",
+        "PharmacyInventoryModule",
+        "PharmacyReporting"
+      ],
+      "backend": [
+        "pharmacy_pos.py",
+        "pharmacy_inventory.py",
+        "pharmacy.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "PharmacyPOS": true,
+        "PharmacyInventoryModule": true,
+        "PharmacyReporting": true
+      },
+      "backend_presence": {
+        "pharmacy_pos.py": true,
+        "pharmacy_inventory.py": true,
+        "pharmacy.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Radiologist",
+      "feature": "Imaging queue, DICOM, reports",
+      "frontend": [
+        "RadiologyWorkflow"
+      ],
+      "backend": [
+        "radiology.py",
+        "document_management.py"
+      ],
+      "target_status": "in_progress",
+      "status": "in_progress",
+      "frontend_presence": {
+        "RadiologyWorkflow": true
+      },
+      "backend_presence": {
+        "radiology.py": true,
+        "document_management.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Billing/Cashier",
+      "feature": "Invoicing, settlement, claims and reconciliation",
+      "frontend": [
+        "BillingManagement",
+        "PaymentProcessing",
+        "BillingTracker"
+      ],
+      "backend": [
+        "billing_management.py",
+        "payments.py",
+        "billing_tracker.py",
+        "era.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "BillingManagement": true,
+        "PaymentProcessing": true,
+        "BillingTracker": true
+      },
+      "backend_presence": {
+        "billing_management.py": true,
+        "payments.py": true,
+        "billing_tracker.py": true,
+        "era.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "OT Manager",
+      "feature": "Surgery scheduling and OT resource allocation",
+      "frontend": [
+        "OperationTheatreManagement"
+      ],
+      "backend": [
+        "ot_management.py"
+      ],
+      "target_status": "in_progress",
+      "status": "in_progress",
+      "frontend_presence": {
+        "OperationTheatreManagement": true
+      },
+      "backend_presence": {
+        "ot_management.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Inventory Manager",
+      "feature": "Stock, reorder, vendor operations",
+      "frontend": [
+        "PharmacyInventoryModule",
+        "LaboratoryModule"
+      ],
+      "backend": [
+        "pharmacy_inventory.py",
+        "pharmacy.py",
+        "laboratory.py"
+      ],
+      "target_status": "in_progress",
+      "status": "implemented",
+      "frontend_presence": {
+        "PharmacyInventoryModule": true,
+        "LaboratoryModule": true
+      },
+      "backend_presence": {
+        "pharmacy_inventory.py": true,
+        "pharmacy.py": true,
+        "laboratory.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "HR/Admin",
+      "feature": "Staff scheduling, payroll, credentialing, RBAC",
+      "frontend": [
+        "HumanResourceDepartment",
+        "ProfessionalCredentialing",
+        "UserManagement"
+      ],
+      "backend": [
+        "hr.py",
+        "professional.py",
+        "auth_jwt.py"
+      ],
+      "target_status": "in_progress",
+      "status": "implemented",
+      "frontend_presence": {
+        "HumanResourceDepartment": true,
+        "ProfessionalCredentialing": true,
+        "UserManagement": true
+      },
+      "backend_presence": {
+        "hr.py": true,
+        "professional.py": true,
+        "auth_jwt.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Insurance Desk",
+      "feature": "Eligibility, pre-auth, claims tracking",
+      "frontend": [
+        "InsurancePlans",
+        "BillingManagement"
+      ],
+      "backend": [
+        "insurance.py",
+        "billing.py",
+        "payments.py"
+      ],
+      "target_status": "in_progress",
+      "status": "implemented",
+      "frontend_presence": {
+        "InsurancePlans": true,
+        "BillingManagement": true
+      },
+      "backend_presence": {
+        "insurance.py": true,
+        "billing.py": true,
+        "payments.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "Patient Self-Service",
+      "feature": "Appointments, reports, bills, records",
+      "frontend": [
+        "PatientPortal"
+      ],
+      "backend": [
+        "patient_portal.py",
+        "document_management.py",
+        "scheduling.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "PatientPortal": true
+      },
+      "backend_presence": {
+        "patient_portal.py": true,
+        "document_management.py": true,
+        "scheduling.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    },
+    {
+      "portal": "System Admin",
+      "feature": "Users, master data, integrations, audit",
+      "frontend": [
+        "RootAdminDashboard",
+        "TenantAdminDashboard",
+        "SystemSettings"
+      ],
+      "backend": [
+        "admin_management.py",
+        "settings.py",
+        "fhir.py",
+        "hl7_v2.py",
+        "smart_fhir.py"
+      ],
+      "target_status": "implemented",
+      "status": "implemented",
+      "frontend_presence": {
+        "RootAdminDashboard": true,
+        "TenantAdminDashboard": true,
+        "SystemSettings": true
+      },
+      "backend_presence": {
+        "admin_management.py": true,
+        "settings.py": true,
+        "fhir.py": true,
+        "hl7_v2.py": true,
+        "smart_fhir.py": true
+      },
+      "frontend_coverage": 100,
+      "backend_coverage": 100
+    }
+  ]
+}

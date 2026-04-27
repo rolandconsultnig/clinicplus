@@ -54,18 +54,24 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
   const loadCDSData = async () => {
     setLoading(true)
     try {
-      const [alertsRes, guidelinesRes, interactionsRes, preventiveRes, rulesRes] = await Promise.all([
-        apiService.request(`/cds/alerts?patient_id=${patientId}`),
-        apiService.request(`/cds/guidelines?patient_id=${patientId}`),
-        apiService.request(`/cds/drug-interactions?patient_id=${patientId}`),
-        apiService.request(`/cds/preventive-care?patient_id=${patientId}`),
+      const requests = patientId
+        ? [
+            apiService.request(`/cds/alerts?patient_id=${patientId}`),
+            apiService.request(`/cds/care-gaps?patient_id=${patientId}`)
+          ]
+        : [
+            Promise.resolve({ alerts: [] }),
+            Promise.resolve({ care_gaps: [] })
+          ]
+      const [alertsRes, careGapsRes, rulesRes] = await Promise.all([
+        ...requests,
         apiService.request('/cds/rules')
       ])
 
-      setAlerts(alertsRes.alerts || [])
-      setGuidelines(guidelinesRes.guidelines || [])
-      setDrugInteractions(interactionsRes.interactions || [])
-      setPreventiveCare(preventiveRes.recommendations || [])
+      setAlerts(alertsRes?.alerts || [])
+      setGuidelines([])
+      setDrugInteractions([])
+      setPreventiveCare(careGapsRes?.care_gaps || [])
       setCdsRules(rulesRes.rules || [])
     } catch (error) {
       console.error('Error loading CDS data:', error)
@@ -75,19 +81,22 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
   }
 
   const runCDSCheck = async () => {
+    if (!patientId) {
+      alert('Select a patient before running CDS check.')
+      return
+    }
     setLoading(true)
     try {
-      const response = await apiService.request('/cds/check', {
+      const response = await apiService.request(`/cds/check-patient/${patientId}`, {
         method: 'POST',
         body: JSON.stringify({
-          patient_id: patientId,
-          encounter_id: encounterId
+          encounter_id: encounterId || null
         })
       })
 
       if (response.success) {
-        setAlerts(response.alerts || [])
-        alert(`CDS check completed. Found ${response.alerts?.length || 0} alerts.`)
+        await loadCDSData()
+        alert(`CDS check completed. Created ${response.alerts_created || 0} alerts.`)
       }
     } catch (error) {
       console.error('CDS check error:', error)
@@ -111,14 +120,7 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
   }
 
   const dismissAlert = async (alertId) => {
-    try {
-      await apiService.request(`/cds/alerts/${alertId}/dismiss`, {
-        method: 'POST'
-      })
-      setAlerts(alerts.filter(a => a.id !== alertId))
-    } catch (error) {
-      console.error('Error dismissing alert:', error)
-    }
+    setAlerts(alerts.filter(a => a.id !== alertId))
   }
 
   const createCDSRule = async () => {
@@ -166,7 +168,7 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
       case 'critical': return 'text-red-600 bg-red-50 border-red-200'
       case 'high': return 'text-orange-600 bg-orange-50 border-orange-200'
       case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200'
-      case 'low': return 'text-blue-600 bg-blue-50 border-blue-200'
+      case 'low': return 'text-teal-700 bg-teal-50 border-teal-200'
       default: return 'text-gray-600 bg-gray-50 border-gray-200'
     }
   }
@@ -199,7 +201,7 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Shield className="w-8 h-8 text-blue-600" />
+            <Shield className="w-8 h-8 text-teal-700" />
             Clinical Decision Support
           </h1>
           <p className="text-gray-600 mt-1">
@@ -310,7 +312,7 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
                                   href={alert.reference_url} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline flex items-center gap-1"
+                                  className="text-teal-700 hover:underline flex items-center gap-1"
                                 >
                                   View Reference <ExternalLink className="w-3 h-3" />
                                 </a>
@@ -371,7 +373,7 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
               <Card key={index}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                    <FileText className="w-5 h-5 text-teal-700" />
                     {guideline.title}
                   </CardTitle>
                   <CardDescription>{guideline.organization}</CardDescription>
@@ -395,7 +397,7 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
                       href={guideline.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-4"
+                      className="inline-flex items-center gap-1 text-sm text-teal-700 hover:underline mt-4"
                     >
                       View Full Guideline <ExternalLink className="w-3 h-3" />
                     </a>
@@ -471,8 +473,8 @@ export default function ClinicalDecisionSupport({ patientId, encounterId }) {
               <Card key={index}>
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-blue-600" />
+                    <div className="p-2 bg-teal-100 rounded-lg">
+                      <TrendingUp className="w-5 h-5 text-teal-700" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">

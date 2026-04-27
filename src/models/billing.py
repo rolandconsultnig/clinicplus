@@ -239,6 +239,7 @@ class Payment(db.Model):
             'payment_date': self.payment_date.isoformat() if self.payment_date else None,
             'payment_method': self.payment_method,
             'payment_amount': float(self.payment_amount) if self.payment_amount else None,
+            'reference_number': self.reference_number,
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

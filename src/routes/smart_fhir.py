@@ -7,23 +7,30 @@ from src.auth.jwt_manager import token_required
 from src.services.smart_fhir import smart_fhir_service
 from src.models.user import db
 from src.models.auth import UserAccount
+from src.models.interoperability import SMARTClientRegistration
 from urllib.parse import urlencode, parse_qs
 import base64
 import hashlib
+import json
+from datetime import datetime
 
 smart_bp = Blueprint('smart_fhir', __name__)
+_smart_tables_ready = False
 
-@smart_bp.route('/fhir/R4/.well-known/smart-configuration', methods=['GET'])
-def smart_configuration():
-    """SMART on FHIR configuration endpoint"""
-    try:
-        base_url = request.host_url.rstrip('/')
-        config = smart_fhir_service.get_smart_configuration(base_url)
-        
-        return jsonify(config), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+
+def _ensure_smart_tables():
+    global _smart_tables_ready
+    if _smart_tables_ready:
+        return
+    SMARTClientRegistration.__table__.create(bind=db.engine, checkfirst=True)
+    _smart_tables_ready = True
+
+
+@smart_bp.before_request
+def initialize_smart_tables():
+    _ensure_smart_tables()
+
+# SMART discovery document is served only from fhir_bp (src/routes/fhir.py) to avoid duplicate URL rules.
 
 @smart_bp.route('/fhir/R4/auth/authorize', methods=['GET', 'POST'])
 def authorize():
@@ -44,6 +51,15 @@ def authorize():
                     'error': 'invalid_request',
                     'error_description': 'client_id and redirect_uri are required'
                 }), 400
+
+            client = SMARTClientRegistration.query.filter_by(client_id=client_id, is_active=True).first()
+            if client:
+                allowed_uris = json.loads(client.redirect_uris_json) if client.redirect_uris_json else []
+                if redirect_uri not in allowed_uris:
+                    return jsonify({
+                        'error': 'invalid_request',
+                        'error_description': 'redirect_uri is not registered for client'
+                    }), 400
             
             # Store authorization request in session
             session['smart_auth'] = {
@@ -146,6 +162,15 @@ def token():
                     'error': 'invalid_request',
                     'error_description': 'code, client_id, and redirect_uri are required'
                 }), 400
+
+            client = SMARTClientRegistration.query.filter_by(client_id=client_id, is_active=True).first()
+            if client:
+                allowed_uris = json.loads(client.redirect_uris_json) if client.redirect_uris_json else []
+                if redirect_uri not in allowed_uris:
+                    return jsonify({
+                        'error': 'invalid_grant',
+                        'error_description': 'redirect_uri is not valid for this client'
+                    }), 400
             
             # Verify PKCE if code_challenge was provided
             # (Simplified - in production, would check against stored code_challenge)
@@ -289,9 +314,20 @@ def register():
         import secrets
         client_id = f"client_{secrets.token_urlsafe(16)}"
         client_secret = secrets.token_urlsafe(32)
-        
-        # In production, would store in database
-        # For now, return registration response
+
+        record = SMARTClientRegistration(
+            client_id=client_id,
+            client_secret=client_secret,
+            client_name=client_name,
+            redirect_uris_json=json.dumps(redirect_uris),
+            scope=scope,
+            grant_types_json=json.dumps(grant_types),
+            response_types_json=json.dumps(response_types),
+            token_endpoint_auth_method='client_secret_basic',
+            created_by=getattr(request.current_user, 'id', None) if hasattr(request, 'current_user') else None,
+        )
+        db.session.add(record)
+        db.session.commit()
         
         return jsonify({
             'client_id': client_id,
@@ -305,5 +341,6 @@ def register():
         }), 201
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 

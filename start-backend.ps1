@@ -24,28 +24,28 @@ try {
     pip install flask flask-cors sqlalchemy flask-jwt-extended
 }
 
-# Check if port 5000 is available
-Write-Host "Checking port 5000..." -ForegroundColor Yellow
-$portInUse = netstat -ano | findstr ":5000" | findstr "LISTENING"
+# Check if port 4300 is available
+Write-Host "Checking port 4300..." -ForegroundColor Yellow
+$portInUse = netstat -ano | findstr ":4300" | findstr "LISTENING"
 if ($portInUse) {
-    Write-Host "⚠ Port 5000 is already in use" -ForegroundColor Yellow
+    Write-Host "⚠ Port 4300 is already in use" -ForegroundColor Yellow
     Write-Host "Attempting to use existing server..." -ForegroundColor Yellow
     
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:5000/api/health" -TimeoutSec 2 -UseBasicParsing
+        $response = Invoke-WebRequest -Uri "http://localhost:4300/api/health" -TimeoutSec 2 -UseBasicParsing
         Write-Host "✓ Server is already running!" -ForegroundColor Green
-        Write-Host "Backend API: http://localhost:5000/api" -ForegroundColor Cyan
+        Write-Host "Backend API: http://localhost:4300/api" -ForegroundColor Cyan
         exit 0
     } catch {
-        Write-Host "✗ Port 5000 is in use but server not responding" -ForegroundColor Red
-        Write-Host "Please stop the process using port 5000 or change the port in main.py" -ForegroundColor Yellow
+        Write-Host "✗ Port 4300 is in use but server not responding" -ForegroundColor Red
+        Write-Host "Please stop the process using port 4300 or change the port in main.py" -ForegroundColor Yellow
         exit 1
     }
 }
 
 # Start the server
 Write-Host ""
-Write-Host "Starting Flask server on http://localhost:5000..." -ForegroundColor Yellow
+Write-Host "Starting Flask server on http://localhost:4300..." -ForegroundColor Yellow
 Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Gray
 Write-Host ""
 

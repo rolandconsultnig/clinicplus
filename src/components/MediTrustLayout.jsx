@@ -78,7 +78,7 @@ const MediTrustLayout = ({ children, themeName }) => {
       <header id="header" className="header d-flex align-items-center fixed-top">
         <div className="header-container container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
           <a href="/" className="logo d-flex align-items-center me-auto me-xl-0" onClick={(e) => { e.preventDefault(); navigate('/'); }}>
-            <img src="/logo.png" alt="Clinic+" style={{ height: '40px', marginRight: '10px' }} />
+            <img src="/images/logo.png" alt="Clinic+" style={{ height: '40px', marginRight: '10px' }} />
             <h1 className="sitename">Clinic+</h1>
           </a>
 
@@ -118,7 +118,7 @@ const MediTrustLayout = ({ children, themeName }) => {
           <div className="row gy-4">
             <div className="col-lg-4 col-md-6 footer-about">
               <a href="/" className="logo d-flex align-items-center">
-                <img src="/logo.png" alt="Clinic+" style={{ height: '40px', marginRight: '10px' }} />
+                <img src="/images/logo.png" alt="Clinic+" style={{ height: '40px', marginRight: '10px' }} />
                 <span className="sitename">Clinic+</span>
               </a>
               <div className="footer-contact pt-3">

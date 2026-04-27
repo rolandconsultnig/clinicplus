@@ -22,6 +22,13 @@ fhir_bp = Blueprint('fhir', __name__)
 # FHIR R4 Base URL
 FHIR_BASE = '/fhir/R4'
 
+
+def _to_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
 @fhir_bp.route(f'{FHIR_BASE}/Patient/<patient_id>', methods=['GET'])
 @token_required
 def get_fhir_patient(patient_id):
@@ -155,7 +162,7 @@ def search_fhir_observations():
                 'code': {
                     'coding': [{
                         'system': 'http://loinc.org',
-                        'code': result.test_code,
+                        'code': getattr(result, 'test_code', None) or 'UNKNOWN',
                         'display': result.test_name
                     }]
                 },
@@ -163,7 +170,7 @@ def search_fhir_observations():
                     'reference': f'Patient/{result.patient_id}'
                 },
                 'valueQuantity': {
-                    'value': float(result.result_value) if result.result_value and result.result_value.replace('.', '').isdigit() else None,
+                    'value': _to_float(result.result_value),
                     'unit': result.result_unit,
                     'system': 'http://unitsofmeasure.org',
                     'code': result.result_unit
@@ -306,7 +313,7 @@ def search_fhir_medication_requests():
                     'coding': [{
                         'system': 'http://www.nlm.nih.gov/research/umls/rxnorm',
                         'code': rx.drug.rxnorm_code if rx.drug else None,
-                        'display': rx.drug.drug_name if rx.drug else rx.medication_name
+                        'display': rx.drug.drug_name if rx.drug else rx.drug_name
                     }]
                 },
                 'subject': {
@@ -314,8 +321,8 @@ def search_fhir_medication_requests():
                 },
                 'authoredOn': rx.prescribed_date.isoformat() if rx.prescribed_date else None,
                 'dosageInstruction': [{
-                    'text': rx.dosage_instructions
-                }] if rx.dosage_instructions else []
+                    'text': rx.sig
+                }] if rx.sig else []
             }
             fhir_meds.append(fhir_med)
         
@@ -478,18 +485,20 @@ def search_fhir_diagnostic_reports():
         if patient_id:
             query = query.filter(LabResult.patient_id == patient_id)
         if encounter_id:
-            query = query.filter(LabResult.encounter_id == encounter_id)
+            query = query.join(LabOrder, LabResult.lab_order_id == LabOrder.id).filter(LabOrder.encounter_id == encounter_id)
         
         results = query.limit(100).all()
         
         # Group results by encounter/date for DiagnosticReport
         reports_dict = {}
         for result in results:
-            key = f"{result.patient_id}_{result.encounter_id or 'none'}_{result.result_date}"
+            order = LabOrder.query.get(result.lab_order_id) if result.lab_order_id else None
+            resolved_encounter_id = order.encounter_id if order else None
+            key = f"{result.patient_id}_{resolved_encounter_id or 'none'}_{result.result_date}"
             if key not in reports_dict:
                 reports_dict[key] = {
                     'patient_id': result.patient_id,
-                    'encounter_id': result.encounter_id,
+                    'encounter_id': resolved_encounter_id,
                     'date': result.result_date,
                     'results': []
                 }
@@ -634,34 +643,26 @@ def search_fhir_immunizations():
         if patient_id and patient_id.startswith('Patient/'):
             patient_id = patient_id.split('/')[1]
         
-        # Note: Immunization model may not exist yet, using placeholder
-        # In production, this would query from Immunization model
+        query = MedicalHistory.query
+        if patient_id:
+            query = query.filter(MedicalHistory.patient_id == patient_id)
+        records = query.limit(200).all()
+
         fhir_immunizations = []
-        
-        # If Immunization model exists, uncomment:
-        # query = Immunization.query
-        # if patient_id:
-        #     query = query.filter(Immunization.patient_id == patient_id)
-        # immunizations = query.limit(100).all()
-        # for imm in immunizations:
-        #     fhir_imm = {
-        #         'resourceType': 'Immunization',
-        #         'id': str(imm.id),
-        #         'status': 'completed',
-        #         'vaccineCode': {
-        #             'coding': [{
-        #                 'system': 'http://hl7.org/fhir/sid/cvx',
-        #                 'code': imm.cvx_code,
-        #                 'display': imm.vaccine_name
-        #             }]
-        #         },
-        #         'patient': {
-        #             'reference': f'Patient/{imm.patient_id}'
-        #         },
-        #         'occurrenceDateTime': imm.date_administered.isoformat() if imm.date_administered else None,
-        #         'primarySource': imm.primary_source
-        #     }
-        #     fhir_immunizations.append(fhir_imm)
+        for record in records:
+            text = f"{record.condition_name or ''} {record.condition or ''}".lower()
+            if 'vaccine' not in text and 'immunization' not in text and 'immunisation' not in text:
+                continue
+            vaccine_name = record.condition_name or record.condition or 'Immunization'
+            fhir_immunizations.append({
+                'resourceType': 'Immunization',
+                'id': str(record.id),
+                'status': 'completed' if record.is_active else 'entered-in-error',
+                'vaccineCode': {'text': vaccine_name},
+                'patient': {'reference': f'Patient/{record.patient_id}'},
+                'occurrenceDateTime': record.diagnosis_date.isoformat() if record.diagnosis_date else None,
+                'primarySource': True
+            })
         
         return jsonify({
             'resourceType': 'Bundle',
@@ -1383,8 +1384,7 @@ def search_fhir_eobs():
         if patient_id and patient_id.startswith('Patient/'):
             patient_id = patient_id.split('/')[1]
         
-        # EOB typically comes from ERA (835) processing
-        # For now, map from InsuranceClaim which has payment information
+        # EOB data is derived from adjudicated InsuranceClaim payment details.
         query = InsuranceClaim.query
         if patient_id:
             query = query.filter(InsuranceClaim.patient_id == patient_id)
@@ -1494,17 +1494,53 @@ def create_fhir_bundle():
                 }]
             }), 400
         
-        # Process transaction bundle
-        # In production, this would process each entry and create/update resources
-        # For now, return success
+        response_entries = []
+        for entry in data.get('entry', []):
+            resource = entry.get('resource') or {}
+            req = entry.get('request') or {}
+            method = (req.get('method') or 'POST').upper()
+            resource_type = resource.get('resourceType')
+
+            if resource_type == 'Patient' and method in ['POST', 'PUT']:
+                name_obj = (resource.get('name') or [{}])[0]
+                first_name = ((name_obj.get('given') or [''])[0] or 'Unknown').strip() or 'Unknown'
+                last_name = (name_obj.get('family') or 'Unknown').strip() or 'Unknown'
+                birth_date = resource.get('birthDate')
+
+                patient = None
+                if method == 'PUT' and resource.get('id'):
+                    patient = Patient.query.get(resource.get('id'))
+                if patient is None:
+                    patient = Patient(
+                        universal_patient_id=f"FHIR-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                        first_name=first_name,
+                        last_name=last_name,
+                        gender=resource.get('gender'),
+                        date_of_birth=datetime.fromisoformat(birth_date).date() if birth_date else None
+                    )
+                    db.session.add(patient)
+                    db.session.flush()
+                else:
+                    patient.first_name = first_name
+                    patient.last_name = last_name
+                    patient.gender = resource.get('gender')
+                    if birth_date:
+                        patient.date_of_birth = datetime.fromisoformat(birth_date).date()
+
+                response_entries.append({'response': {'status': '201 Created', 'location': f'Patient/{patient.id}'}})
+            else:
+                response_entries.append({'response': {'status': '400 Bad Request'}})
+
+        db.session.commit()
         
         return jsonify({
             'resourceType': 'Bundle',
             'type': 'transaction-response',
-            'entry': []
+            'entry': response_entries
         }), 200
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             'resourceType': 'OperationOutcome',
             'issue': [{'severity': 'error', 'code': 'exception', 'details': {'text': str(e)}}]
@@ -1635,7 +1671,33 @@ def validate_fhir_resource(resource_type):
                 }]
             }), 400
         
-        # In production, would perform full FHIR validation
+        issues = []
+        if resource_type == 'Patient':
+            if not data.get('name'):
+                issues.append({
+                    'severity': 'error',
+                    'code': 'required',
+                    'details': {'text': 'Patient.name is required'}
+                })
+        elif resource_type == 'Observation':
+            if not data.get('subject'):
+                issues.append({
+                    'severity': 'error',
+                    'code': 'required',
+                    'details': {'text': 'Observation.subject is required'}
+                })
+            if not data.get('code'):
+                issues.append({
+                    'severity': 'error',
+                    'code': 'required',
+                    'details': {'text': 'Observation.code is required'}
+                })
+        if issues:
+            return jsonify({
+                'resourceType': 'OperationOutcome',
+                'issue': issues
+            }), 400
+
         return jsonify({
             'resourceType': 'OperationOutcome',
             'issue': [{

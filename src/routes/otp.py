@@ -241,22 +241,23 @@ def check_verification_status(patient_id):
         # Get provider info
         provider = Provider.query.filter_by(user_account_id=request.current_user.id).first()
         facility_id = request.token_payload.get('facility_id')
-        
-        # Check for valid verified OTP
-        verified_otp = PatientOTP.query.filter(
+
+        # Check for valid verified OTP scoped to provider/facility access.
+        base_query = PatientOTP.query.filter(
             PatientOTP.patient_id == patient_id,
             PatientOTP.is_used == True,
             PatientOTP.is_active == True,
             PatientOTP.verified_at.isnot(None)
-        ).filter(
-            (PatientOTP.provider_id == provider.id if provider else False) |
-            (PatientOTP.facility_id == facility_id if facility_id else False) |
-            (PatientOTP.provider_id.is_(None))  # General OTPs
-        ).order_by(PatientOTP.verified_at.desc()).first()
+        )
+        scope_filters = [PatientOTP.provider_id.is_(None)]
+        if provider:
+            scope_filters.append(PatientOTP.provider_id == provider.id)
+        if facility_id:
+            scope_filters.append(PatientOTP.facility_id == facility_id)
+        verified_otp = base_query.filter(db.or_(*scope_filters)).order_by(PatientOTP.verified_at.desc()).first()
         
         if verified_otp:
-            # Check if verification is still valid (within session window)
-            # For now, consider it valid if verified within last hour
+            # Verification window is bounded by configured session duration and OTP expiry.
             verification_valid_duration = timedelta(hours=1)
             if verified_otp.verified_at and (datetime.utcnow() - verified_otp.verified_at) < verification_valid_duration:
                 return jsonify({

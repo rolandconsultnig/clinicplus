@@ -585,10 +585,10 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
   const avatarFallback = fullName ? fullName.charAt(0).toUpperCase() : 'P'
 
   return (
-    <div className="p-6 space-y-6 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 rounded-2xl">
+    <div className="p-6 space-y-6 bg-gradient-to-br from-slate-50 via-teal-50/35 to-slate-100 rounded-2xl">
       {/* Hero Profile Header */}
       <Card className="border-0 shadow-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16 ring-4 ring-white/30">
               <AvatarImage src={user?.photo_url || user?.avatar_url} alt={fullName} />
@@ -654,7 +654,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
                     <p className="text-sm text-gray-600">Upcoming Appointments</p>
                     <p className="text-2xl font-bold">{stats.upcomingAppointments}</p>
                   </div>
-                  <Calendar className="w-8 h-8 text-blue-600" />
+                  <Calendar className="w-8 h-8 text-teal-700" />
                 </div>
               </CardContent>
             </Card>
@@ -676,7 +676,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
                     <p className="text-sm text-gray-600">Pending Lab Results</p>
                     <p className="text-2xl font-bold">{stats.pendingLabResults}</p>
                   </div>
-                  <TestTube className="w-8 h-8 text-purple-600" />
+                  <TestTube className="w-8 h-8 text-teal-700" />
                 </div>
               </CardContent>
             </Card>
@@ -723,7 +723,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
 
         <TabsContent value="messages" className="space-y-4">
           {showCompose && (
-            <Card className="mb-6 border-2 border-blue-200">
+            <Card className="mb-6 border-2 border-teal-200">
               <CardHeader>
                 <CardTitle>Send Message</CardTitle>
               </CardHeader>
@@ -779,7 +779,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
               ) : (
                 <div className="space-y-4">
                   {messages.map((msg) => (
-                    <div key={msg.id} className={`p-4 border rounded-lg ${msg.status === 'unread' ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}>
+                    <div key={msg.id} className={`p-4 border rounded-lg ${msg.status === 'unread' ? 'border-teal-300 bg-teal-50' : 'border-gray-200'}`}>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900">{msg.subject}</h3>
@@ -791,7 +791,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
                           )}
                         </div>
                         {msg.status === 'unread' && (
-                          <Badge className="bg-blue-600">New</Badge>
+                          <Badge className="bg-teal-600">New</Badge>
                         )}
                       </div>
                     </div>
@@ -909,7 +909,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <FileText className="w-4 h-4 text-blue-600" />
+                                <FileText className="w-4 h-4 text-teal-700" />
                                 <h3 className="font-semibold">{record.document_type || 'Medical Record'}</h3>
                                 <Badge variant="outline">{record.category}</Badge>
                               </div>
@@ -985,7 +985,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <History className="w-5 h-5 text-blue-600" />
+                <History className="w-5 h-5 text-teal-700" />
                 <CardTitle>Medical History</CardTitle>
               </div>
               <CardDescription>View your complete medical history, diagnoses, and treatments</CardDescription>
@@ -993,7 +993,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
             <CardContent>
               {loadingHistory ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Loading medical history...</p>
                 </div>
               ) : medicalHistory.length === 0 ? (
@@ -1005,7 +1005,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
               ) : (
                 <div className="space-y-4">
                   {medicalHistory.map((history) => (
-                    <Card key={history.id} className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+                    <Card key={history.id} className="hover:shadow-md transition-shadow border-l-4 border-l-teal-500">
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
@@ -1031,9 +1031,9 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
                               <p className="text-sm text-gray-700 mb-2">{history.description}</p>
                             )}
                             {history.treatment && (
-                              <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                                <p className="text-sm font-medium text-blue-900 mb-1">Treatment:</p>
-                                <p className="text-sm text-blue-800">{history.treatment}</p>
+                              <div className="mt-3 p-3 bg-teal-50 rounded-lg">
+                                <p className="text-sm font-medium text-teal-900 mb-1">Treatment:</p>
+                                <p className="text-sm text-teal-800">{history.treatment}</p>
                               </div>
                             )}
                             {history.notes && (
@@ -1087,7 +1087,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
                         type="checkbox"
                         checked={enabled}
                         onChange={() => setAccessScope({ ...accessScope, [key]: !enabled })}
-                        className="w-4 h-4 text-blue-600 rounded"
+                        className="w-4 h-4 text-teal-700 rounded"
                       />
                       <Label className="cursor-pointer text-sm font-medium capitalize">
                         {key.replace('_', ' ')}
@@ -1143,15 +1143,15 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
 
                 {/* OTP Display */}
                 {otpData && (
-                  <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+                  <Card className="bg-gradient-to-br from-teal-50 to-slate-100 border-2 border-teal-200">
                     <CardContent className="p-6">
                       <div className="text-center space-y-4">
                         <div className="flex items-center justify-center gap-2 mb-4">
-                          <Shield className="w-6 h-6 text-blue-600" />
+                          <Shield className="w-6 h-6 text-teal-700" />
                           <h3 className="text-lg font-bold text-gray-900">Authorization Code Generated</h3>
                         </div>
                         
-                        <div className="bg-white rounded-lg p-6 border-2 border-dashed border-blue-300">
+                        <div className="bg-white rounded-lg p-6 border-2 border-dashed border-teal-300">
                           <div className="flex items-center justify-center gap-2 mb-3">
                             <CheckCircle2 className="w-5 h-5 text-green-600" />
                             <p className="text-sm font-semibold text-gray-900">Code sent to your phone!</p>
@@ -1159,13 +1159,13 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
                           <p className="text-sm text-gray-600 mb-4">
                             Check your SMS messages for the 6-digit authorization code. Share this code with your healthcare provider when they request access to your medical records.
                           </p>
-                          <div className="bg-blue-50 rounded-lg p-4">
+                          <div className="bg-teal-50 rounded-lg p-4">
                             <p className="text-xs text-gray-600 mb-2">Code Format:</p>
                             <div className="flex items-center justify-center gap-2">
                               <div className="flex gap-1">
                                 {[1,2,3,4,5,6].map((i) => (
-                                  <div key={i} className="w-8 h-10 bg-white border-2 border-blue-300 rounded flex items-center justify-center">
-                                    <span className="text-blue-600 font-bold">•</span>
+                                  <div key={i} className="w-8 h-10 bg-white border-2 border-teal-300 rounded flex items-center justify-center">
+                                    <span className="text-teal-700 font-bold">•</span>
                                   </div>
                                 ))}
                               </div>
@@ -1280,7 +1280,7 @@ const PatientPortal = ({ initialTab = 'dashboard' }) => {
           {!profileData ? (
             <Card>
               <CardContent className="p-6 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading profile...</p>
               </CardContent>
             </Card>

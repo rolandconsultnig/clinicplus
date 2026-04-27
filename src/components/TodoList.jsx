@@ -79,7 +79,7 @@ const TodoList = ({ userId, role }) => {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-blue-600" />
+              <CheckCircle2 className="w-5 h-5 text-teal-700" />
               To-Do List
             </CardTitle>
             <CardDescription className="mt-1">Manage your tasks and reminders</CardDescription>
@@ -99,7 +99,7 @@ const TodoList = ({ userId, role }) => {
             placeholder="Add a new task..."
             className="flex-1"
           />
-          <Button onClick={addTodo} className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
+          <Button onClick={addTodo} className="bg-gradient-to-r from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800">
             <Plus className="w-4 h-4 mr-2" />
             Add
           </Button>
@@ -136,7 +136,7 @@ const TodoList = ({ userId, role }) => {
         {/* Todo List */}
         {loading ? (
           <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
           </div>
         ) : filteredTodos.length === 0 ? (
           <div className="text-center py-12">
@@ -156,13 +156,13 @@ const TodoList = ({ userId, role }) => {
                 className={`group flex items-center gap-3 p-3 rounded-lg border transition-all ${
                   todo.completed
                     ? 'bg-gray-50 border-gray-200'
-                    : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'
+                    : 'bg-white border-gray-200 hover:border-teal-300 hover:shadow-md'
                 }`}
               >
                 <button
                   onClick={() => toggleTodo(todo.id)}
                   className={`flex-shrink-0 ${
-                    todo.completed ? 'text-green-600' : 'text-gray-400 hover:text-blue-600'
+                    todo.completed ? 'text-green-600' : 'text-gray-400 hover:text-teal-700'
                   } transition-colors`}
                 >
                   {todo.completed ? (

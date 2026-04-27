@@ -951,6 +951,7 @@ section,
 
 .hero .hero-content .content-box .info-badges {
   display: flex;
+  flex-wrap: wrap;
   gap: 2rem;
 }
 

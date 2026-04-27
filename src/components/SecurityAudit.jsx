@@ -82,13 +82,13 @@ const SecurityAudit = () => {
       case 'logout':
         return <Lock className="w-4 h-4 text-gray-600" />;
       case 'create':
-        return <CheckCircle2 className="w-4 h-4 text-blue-600" />;
+        return <CheckCircle2 className="w-4 h-4 text-teal-700" />;
       case 'update':
         return <Edit className="w-4 h-4 text-yellow-600" />;
       case 'delete':
         return <XCircle className="w-4 h-4 text-red-600" />;
       case 'view':
-        return <Eye className="w-4 h-4 text-indigo-600" />;
+        return <Eye className="w-4 h-4 text-teal-700" />;
       default:
         return <Activity className="w-4 h-4 text-gray-600" />;
     }
@@ -101,13 +101,13 @@ const SecurityAudit = () => {
       case 'logout':
         return 'bg-gray-100 text-gray-800';
       case 'create':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-teal-100 text-teal-800';
       case 'update':
         return 'bg-yellow-100 text-yellow-800';
       case 'delete':
         return 'bg-red-100 text-red-800';
       case 'view':
-        return 'bg-indigo-100 text-indigo-800';
+        return 'bg-teal-100 text-teal-900';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -196,7 +196,7 @@ const SecurityAudit = () => {
                       <p className="text-sm text-gray-600">Total Logs</p>
                       <p className="text-2xl font-bold text-gray-900">{stats.total_logs}</p>
                     </div>
-                    <Activity className="w-8 h-8 text-blue-600" />
+                    <Activity className="w-8 h-8 text-teal-700" />
                   </div>
                 </CardContent>
               </Card>
@@ -229,7 +229,7 @@ const SecurityAudit = () => {
                       <p className="text-sm text-gray-600">Resource Types</p>
                       <p className="text-2xl font-bold text-gray-900">{Object.keys(stats.resource_types || {}).length}</p>
                     </div>
-                    <Shield className="w-8 h-8 text-purple-600" />
+                    <Shield className="w-8 h-8 text-teal-700" />
                   </div>
                 </CardContent>
               </Card>
@@ -245,7 +245,7 @@ const SecurityAudit = () => {
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
                   <p className="text-gray-600 mt-2">Loading logs...</p>
                 </div>
               ) : filteredLogs.length === 0 ? (

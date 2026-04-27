@@ -433,7 +433,7 @@ export default function FHIRIntegration() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Download className="w-5 h-5 text-blue-600" />
+                <Download className="w-5 h-5 text-teal-700" />
                 Export to FHIR
               </CardTitle>
               <CardDescription>
@@ -466,9 +466,9 @@ export default function FHIRIntegration() {
                 </div>
               </div>
 
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-2">Export Includes:</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
+              <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                <h4 className="font-semibold text-teal-900 mb-2">Export Includes:</h4>
+                <ul className="text-sm text-teal-800 space-y-1">
                   <li>• Patient demographics</li>
                   <li>• Conditions and diagnoses</li>
                   <li>• Medications and allergies</li>
@@ -530,7 +530,7 @@ export default function FHIRIntegration() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Server className="w-5 h-5 text-purple-600" />
+                    <Server className="w-5 h-5 text-teal-700" />
                     Connected FHIR Servers
                   </CardTitle>
                   <CardDescription>
@@ -614,7 +614,7 @@ export default function FHIRIntegration() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-indigo-600" />
+                <Globe className="w-5 h-5 text-teal-700" />
                 SMART on FHIR Apps
               </CardTitle>
               <CardDescription>
@@ -622,9 +622,9 @@ export default function FHIRIntegration() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-                <h4 className="font-semibold text-indigo-900 mb-2">SMART on FHIR</h4>
-                <p className="text-sm text-indigo-800">
+              <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                <h4 className="font-semibold text-slate-900 mb-2">SMART on FHIR</h4>
+                <p className="text-sm text-teal-900">
                   Launch third-party applications that integrate with your FHIR server using OAuth2.
                 </p>
               </div>

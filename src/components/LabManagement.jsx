@@ -24,9 +24,9 @@ export default function LabManagement({ patientId }) {
       setLoading(true);
       
       const [ordersResult, pendingResult, statsResult] = await Promise.all([
-        apiService.request(`/api/lab-mgmt/orders${patientId ? `?patient_id=${patientId}` : ''}`, 'GET'),
-        apiService.request('/api/lab-mgmt/orders/pending-review', 'GET'),
-        apiService.request('/api/lab-mgmt/statistics', 'GET')
+        apiService.request(`/lab-mgmt/orders${patientId ? `?patient_id=${patientId}` : ''}`, 'GET'),
+        apiService.request('/lab-mgmt/orders/pending-review', 'GET'),
+        apiService.request('/lab-mgmt/statistics', 'GET')
       ]);
 
       if (ordersResult.success) {
@@ -104,7 +104,7 @@ export default function LabManagement({ patientId }) {
                     <Card key={order.id} className="p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <TestTube className="w-5 h-5 text-blue-500" />
+                          <TestTube className="w-5 h-5 text-teal-600" />
                           <div>
                             <p className="font-medium">Order #{order.id}</p>
                             <p className="text-sm text-gray-600">

@@ -13,6 +13,134 @@ from datetime import datetime, date
 import uuid
 
 opd_bp = Blueprint('opd', __name__)
+_tables_ready = False
+
+WORKFLOW_STEP_ORDER = [
+    'booked',
+    'arrived',
+    'registered',
+    'triaged',
+    'in_queue',
+    'in_consultation',
+    'investigations_ordered',
+    'investigations_completed',
+    'review_completed',
+    'pharmacy_completed',
+    'billing_completed',
+    'discharged',
+]
+
+
+def _ensure_opd_tables():
+    global _tables_ready
+    if _tables_ready:
+        return
+
+    OPDVisit.__table__.create(bind=db.engine, checkfirst=True)
+    OPDQueue.__table__.create(bind=db.engine, checkfirst=True)
+
+    # Lightweight schema migration for newly introduced OPD workflow fields.
+    required_columns = {
+        'appointment_date': 'DATETIME',
+        'booking_source': 'VARCHAR(30)',
+        'department': 'VARCHAR(100)',
+        'insurance_plan': 'VARCHAR(120)',
+        'registration_qr': 'VARCHAR(120)',
+        'registration_verified': 'BOOLEAN DEFAULT 0',
+        'verification_notes': 'TEXT',
+        'verified_by': 'INTEGER',
+        'verified_at': 'DATETIME',
+        'arrived_at': 'DATETIME',
+        'review_completed': 'BOOLEAN DEFAULT 0',
+        'pharmacy_completed': 'BOOLEAN DEFAULT 0',
+        'pharmacy_completed_at': 'DATETIME',
+        'billing_completed': 'BOOLEAN DEFAULT 0',
+        'billing_completed_at': 'DATETIME',
+        'total_billing_amount': 'FLOAT DEFAULT 0',
+        'visit_summary': 'TEXT',
+    }
+    existing_columns = {
+        row[1] for row in db.session.execute(db.text("PRAGMA table_info(opd_visits)")).fetchall()
+    }
+    for column_name, definition in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(db.text(f"ALTER TABLE opd_visits ADD COLUMN {column_name} {definition}"))
+    db.session.commit()
+    _tables_ready = True
+
+
+@opd_bp.before_request
+def initialize_opd_tables():
+    _ensure_opd_tables()
+
+
+def _build_step_progress(visit):
+    current_status = visit.workflow_status or 'booked'
+    try:
+        current_index = WORKFLOW_STEP_ORDER.index(current_status)
+    except ValueError:
+        current_index = -1
+
+    steps = []
+    for index, step in enumerate(WORKFLOW_STEP_ORDER):
+        steps.append({
+            'step': step,
+            'completed': index < current_index or (current_status == 'discharged' and step == 'discharged'),
+            'current': index == current_index and current_status != 'discharged',
+        })
+    if current_status == 'discharged':
+        for step in steps:
+            step['completed'] = True
+            step['current'] = False
+    return steps
+
+
+@opd_bp.route('/visits/book', methods=['POST'])
+@token_required
+@role_required(['Receptionist', 'Nurse', 'System Administrator'])
+def book_opd_visit():
+    """Book a scheduled OPD visit."""
+    try:
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        if not patient_id:
+            return jsonify({'error': 'patient_id is required'}), 400
+
+        patient = Patient.query.get(patient_id)
+        if not patient:
+            return jsonify({'error': 'Patient not found'}), 404
+
+        facility_id = request.token_payload.get('facility_id') or patient.facility_id
+        appointment_date = None
+        if data.get('appointment_date'):
+            appointment_date = datetime.strptime(data['appointment_date'], '%Y-%m-%d')
+
+        visit = OPDVisit(
+            visit_id=f"OPD-{uuid.uuid4().hex[:8].upper()}",
+            patient_id=patient.id,
+            facility_id=facility_id,
+            visit_type='scheduled',
+            workflow_status='booked',
+            appointment_date=appointment_date,
+            booking_source=data.get('booking_source', 'online'),
+            department=data.get('department'),
+            insurance_plan=data.get('insurance_plan'),
+            chief_complaint=data.get('chief_complaint', ''),
+            registration_token=f"T{datetime.now().strftime('%Y%m%d%H%M%S')[-8:]}",
+            registration_qr=f"QR-{uuid.uuid4().hex[:12].upper()}",
+            created_by=request.current_user.id
+        )
+        db.session.add(visit)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'visit': visit.to_dict(),
+            'message': 'OPD appointment booked'
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 # Step 1: Patient Arrival and Registration
 @opd_bp.route('/visits/register', methods=['POST'])
@@ -47,6 +175,11 @@ def register_opd_visit():
             chief_complaint=data.get('chief_complaint', ''),
             workflow_status='registered',
             registration_token=f"T{datetime.now().strftime('%Y%m%d%H%M%S')[-8:]}",
+            registration_qr=f"QR-{uuid.uuid4().hex[:12].upper()}",
+            arrived_at=datetime.utcnow(),
+            booking_source=data.get('booking_source', 'walk_in'),
+            department=data.get('department'),
+            insurance_plan=data.get('insurance_plan'),
             registration_fee_paid=data.get('registration_fee_paid', False),
             registration_fee_amount=data.get('registration_fee_amount', 0.0),
             created_by=request.current_user.id
@@ -61,6 +194,45 @@ def register_opd_visit():
             'message': 'Patient registered successfully'
         }), 201
         
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@opd_bp.route('/visits/<int:visit_id>/arrival', methods=['POST'])
+@token_required
+@role_required(['Receptionist', 'Nurse', 'System Administrator'])
+def mark_arrival(visit_id):
+    """Mark patient arrival for booked visits."""
+    try:
+        visit = OPDVisit.query.get_or_404(visit_id)
+        visit.arrived_at = datetime.utcnow()
+        if visit.workflow_status == 'booked':
+            visit.workflow_status = 'arrived'
+        db.session.commit()
+        return jsonify({'success': True, 'visit': visit.to_dict(), 'message': 'Patient marked as arrived'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@opd_bp.route('/visits/<int:visit_id>/verify', methods=['POST'])
+@token_required
+@role_required(['Receptionist', 'Nurse', 'System Administrator'])
+def verify_registration(visit_id):
+    """Verify patient identity/insurance and collect registration payment."""
+    try:
+        visit = OPDVisit.query.get_or_404(visit_id)
+        data = request.get_json() or {}
+        visit.registration_verified = True
+        visit.verification_notes = data.get('verification_notes')
+        visit.verified_by = request.current_user.id
+        visit.verified_at = datetime.utcnow()
+        visit.registration_fee_paid = bool(data.get('registration_fee_paid', visit.registration_fee_paid))
+        visit.registration_fee_amount = float(data.get('registration_fee_amount', visit.registration_fee_amount or 0))
+        visit.workflow_status = 'registered'
+        db.session.commit()
+        return jsonify({'success': True, 'visit': visit.to_dict(), 'message': 'Registration verified'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -219,6 +391,59 @@ def get_queue():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@opd_bp.route('/departments', methods=['GET'])
+@token_required
+def get_departments():
+    """Get OPD departments represented in current visits."""
+    try:
+        facility_id = request.token_payload.get('facility_id')
+        rows = db.session.query(OPDVisit.department).filter(
+            OPDVisit.facility_id == facility_id,
+            OPDVisit.department.isnot(None)
+        ).distinct().all()
+        departments = [row[0] for row in rows if row[0]]
+        if not departments:
+            departments = ['General Medicine', 'Pediatrics', 'Orthopedics', 'Cardiology']
+        return jsonify({'success': True, 'departments': departments}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@opd_bp.route('/stats', methods=['GET'])
+@token_required
+def get_opd_stats():
+    """Get OPD summary stats for the current facility."""
+    try:
+        facility_id = request.token_payload.get('facility_id')
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        visits_today = OPDVisit.query.filter(
+            OPDVisit.facility_id == facility_id,
+            OPDVisit.visit_date >= today_start
+        ).all()
+        waiting = len([v for v in visits_today if v.workflow_status in ['registered', 'triaged', 'in_queue']])
+        in_progress = len([v for v in visits_today if v.workflow_status in ['in_consultation', 'investigations_ordered']])
+        completed = len([v for v in visits_today if v.workflow_status in ['billing_completed', 'discharged']])
+        avg_wait_time = 0
+        wait_samples = []
+        for visit in visits_today:
+            if visit.called_at and visit.visit_date:
+                wait_samples.append((visit.called_at - visit.visit_date).total_seconds() / 60)
+        if wait_samples:
+            avg_wait_time = round(sum(wait_samples) / len(wait_samples), 1)
+
+        return jsonify({
+            'success': True,
+            'stats': {
+                'waiting': waiting,
+                'inProgress': in_progress,
+                'completed': completed,
+                'avgWaitTime': avg_wait_time
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Step 5: Call Patient for Consultation
 @opd_bp.route('/queue/<int:queue_id>/call', methods=['POST'])
 @token_required
@@ -337,10 +562,10 @@ def complete_consultation(visit_id):
         visit.investigations_ordered = investigations_ordered
         
         if investigations_ordered:
-            visit.workflow_status = 'investigation_ordered'
+            visit.workflow_status = 'investigations_ordered'
             visit.investigation_payment_pending = data.get('investigation_payment_pending', True)
         else:
-            visit.workflow_status = 'treatment_planned'
+            visit.workflow_status = 'review_completed'
         
         visit.consultation_completed_at = datetime.utcnow()
         
@@ -372,7 +597,7 @@ def complete_investigations(visit_id):
         visit = OPDVisit.query.get_or_404(visit_id)
         
         visit.investigations_completed = True
-        visit.workflow_status = 'investigation_completed'
+        visit.workflow_status = 'investigations_completed'
         
         db.session.commit()
         
@@ -386,6 +611,62 @@ def complete_investigations(visit_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+
+@opd_bp.route('/visits/<int:visit_id>/review', methods=['POST'])
+@token_required
+@role_required(['Physician', 'Nurse Practitioner', 'System Administrator'])
+def complete_review(visit_id):
+    """Complete post-investigation review/follow-up consultation."""
+    try:
+        visit = OPDVisit.query.get_or_404(visit_id)
+        data = request.get_json() or {}
+        visit.review_completed = True
+        visit.workflow_status = 'review_completed'
+        visit.follow_up_required = data.get('follow_up_required', visit.follow_up_required)
+        if data.get('follow_up_date'):
+            visit.follow_up_date = datetime.strptime(data['follow_up_date'], '%Y-%m-%d').date()
+        db.session.commit()
+        return jsonify({'success': True, 'visit': visit.to_dict(), 'message': 'Review completed'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@opd_bp.route('/visits/<int:visit_id>/pharmacy/complete', methods=['POST'])
+@token_required
+@role_required(['Pharmacist', 'System Administrator'])
+def complete_pharmacy(visit_id):
+    """Mark OPD medication dispensing step as completed."""
+    try:
+        visit = OPDVisit.query.get_or_404(visit_id)
+        visit.pharmacy_completed = True
+        visit.pharmacy_completed_at = datetime.utcnow()
+        visit.workflow_status = 'pharmacy_completed'
+        db.session.commit()
+        return jsonify({'success': True, 'visit': visit.to_dict(), 'message': 'Pharmacy step completed'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@opd_bp.route('/visits/<int:visit_id>/billing/settle', methods=['POST'])
+@token_required
+@role_required(['Receptionist', 'Billing', 'System Administrator'])
+def settle_billing(visit_id):
+    """Mark OPD billing settlement as completed."""
+    try:
+        visit = OPDVisit.query.get_or_404(visit_id)
+        data = request.get_json() or {}
+        visit.billing_completed = True
+        visit.billing_completed_at = datetime.utcnow()
+        visit.total_billing_amount = float(data.get('total_amount', visit.total_billing_amount or 0))
+        visit.workflow_status = 'billing_completed'
+        db.session.commit()
+        return jsonify({'success': True, 'visit': visit.to_dict(), 'message': 'Billing completed'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 # Step 9: Discharge Patient
 @opd_bp.route('/visits/<int:visit_id>/discharge', methods=['POST'])
 @token_required
@@ -394,12 +675,29 @@ def discharge_patient(visit_id):
     """Discharge patient from OPD"""
     try:
         visit = OPDVisit.query.get_or_404(visit_id)
-        data = request.get_json()
+        data = request.get_json() or {}
+
+        missing_steps = []
+        if not visit.review_completed:
+            missing_steps.append('review_completed')
+        if not visit.pharmacy_completed:
+            missing_steps.append('pharmacy_completed')
+        if not visit.billing_completed:
+            missing_steps.append('billing_completed')
+        if missing_steps:
+            return jsonify({
+                'success': False,
+                'error': 'Visit cannot be discharged until all mandatory outpatient steps are completed',
+                'missing_steps': missing_steps,
+                'workflow_status': visit.workflow_status,
+                'step_progress': _build_step_progress(visit)
+            }), 409
         
         visit.workflow_status = 'discharged'
         visit.discharged_at = datetime.utcnow()
         visit.discharge_notes = data.get('discharge_notes', '')
         visit.follow_up_required = data.get('follow_up_required', False)
+        visit.visit_summary = data.get('visit_summary', visit.visit_summary)
         if data.get('follow_up_date'):
             visit.follow_up_date = datetime.strptime(data['follow_up_date'], '%Y-%m-%d').date()
         
@@ -408,6 +706,7 @@ def discharge_patient(visit_id):
         return jsonify({
             'success': True,
             'visit': visit.to_dict(),
+            'step_progress': _build_step_progress(visit),
             'message': 'Patient discharged successfully'
         }), 200
         
@@ -433,7 +732,8 @@ def get_visit(visit_id):
         
         return jsonify({
             'success': True,
-            'visit': visit_dict
+            'visit': visit_dict,
+            'step_progress': _build_step_progress(visit)
         }), 200
         
     except Exception as e:
@@ -460,12 +760,22 @@ def get_visits():
         
         return jsonify({
             'success': True,
-            'visits': [v.to_dict() for v in visits],
+            'visits': [
+                {
+                    **v.to_dict(),
+                    'step_progress': _build_step_progress(v)
+                }
+                for v in visits
+            ],
             'total': len(visits)
         }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+
+
 
 
 

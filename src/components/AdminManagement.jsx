@@ -6,7 +6,8 @@ import { apiService } from '../services/apiService';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Users, Shield, Database, Settings, FileText } from 'lucide-react';
+import { Users, Shield, Database, Settings, FileText, Activity } from 'lucide-react';
+import SystemHealthMonitoring from './SystemHealthMonitoring.jsx';
 
 export default function AdminManagement() {
   const [users, setUsers] = useState([]);
@@ -23,10 +24,10 @@ export default function AdminManagement() {
     try {
       setLoading(true);
       const [usersResult, aclResult, codesResult, logsResult] = await Promise.all([
-        apiService.request('/api/admin-mgmt/users', 'GET'),
-        apiService.request('/api/admin-mgmt/acl', 'GET'),
-        apiService.request('/api/admin-mgmt/code-systems', 'GET'),
-        apiService.request('/api/admin-mgmt/logs?limit=50', 'GET')
+        apiService.request('/admin-mgmt/users', 'GET'),
+        apiService.request('/admin-mgmt/acl', 'GET'),
+        apiService.request('/admin-mgmt/code-systems', 'GET'),
+        apiService.request('/admin-mgmt/logs?limit=50', 'GET')
       ]);
 
       if (usersResult.success) setUsers(usersResult.users || []);
@@ -57,6 +58,10 @@ export default function AdminManagement() {
               <TabsTrigger value="acl">ACL</TabsTrigger>
               <TabsTrigger value="code-systems">Code Systems</TabsTrigger>
               <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="system-health" className="gap-1">
+              <Activity className="h-3.5 w-3.5" />
+              System
+            </TabsTrigger>
             </TabsList>
 
             <TabsContent value="users" className="mt-4">
@@ -122,6 +127,10 @@ export default function AdminManagement() {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="system-health" className="mt-4">
+              <SystemHealthMonitoring />
             </TabsContent>
 
             <TabsContent value="logs" className="mt-4">

@@ -50,7 +50,10 @@ export default function PatientAppointmentBooking({ patientId, onBookingSuccess 
 
   useEffect(() => {
     loadFacilities();
-  }, []);
+    if (isPatientBooking && patientId) {
+      loadPatientInfo();
+    }
+  }, [isPatientBooking, patientId]);
 
   useEffect(() => {
     if (bookingData.facility_id) {
@@ -68,6 +71,25 @@ export default function PatientAppointmentBooking({ patientId, onBookingSuccess 
     }
   }, [bookingData.provider_id, bookingData.appointment_date]);
 
+  const loadPatientInfo = async () => {
+    try {
+      const result = await apiService.request(`/secure/patients/${patientId}`, { method: 'GET' });
+      if (result.success && result.patient) {
+        setPatientInfo(result.patient);
+        // Pre-fill patient information
+        setBookingData(prev => ({
+          ...prev,
+          full_name: `${result.patient.first_name} ${result.patient.last_name}`,
+          date_of_birth: result.patient.date_of_birth || prev.date_of_birth,
+          phone: result.patient.phone_primary || result.patient.phone_secondary || prev.phone,
+          email: result.patient.email || prev.email,
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading patient info:', err);
+    }
+  };
+
   const loadFacilities = async () => {
     try {
       const result = await apiService.request('/organization/facilities', 'GET');
@@ -81,7 +103,7 @@ export default function PatientAppointmentBooking({ patientId, onBookingSuccess 
 
   const loadProviders = async (facilityId) => {
     try {
-      const result = await apiService.request(`/provider?facility_id=${facilityId}`, 'GET');
+      const result = await apiService.request(`/providers?facility_id=${facilityId}`, 'GET');
       if (result.success) {
         setProviders(result.providers || []);
       }
@@ -112,10 +134,13 @@ export default function PatientAppointmentBooking({ patientId, onBookingSuccess 
 
   const validate = () => {
     const newErrors = {};
-    if (!bookingData.full_name) newErrors.full_name = 'Full name is required';
-    if (!bookingData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required';
-    if (!bookingData.phone) newErrors.phone = 'Phone number is required';
-    if (!bookingData.email) newErrors.email = 'Email is required';
+    // Only validate patient info fields if not a logged-in patient booking
+    if (!isPatientBooking) {
+      if (!bookingData.full_name) newErrors.full_name = 'Full name is required';
+      if (!bookingData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required';
+      if (!bookingData.phone) newErrors.phone = 'Phone number is required';
+      if (!bookingData.email) newErrors.email = 'Email is required';
+    }
     if (!bookingData.facility_id) newErrors.facility_id = 'Please select a facility';
     if (!bookingData.appointment_date) newErrors.appointment_date = 'Please choose a preferred date';
     if (!bookingData.appointment_time) newErrors.appointment_time = 'Please choose a preferred time';
@@ -149,7 +174,10 @@ export default function PatientAppointmentBooking({ patientId, onBookingSuccess 
         notes: bookingData.notes,
       };
 
-      const appointmentResult = await apiService.request('/scheduling/appointments', 'POST', payload);
+      const appointmentResult = await apiService.request('/scheduling/appointments', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
 
       if (appointmentResult.success) {
         setBookingSuccess(true);
@@ -205,7 +233,7 @@ export default function PatientAppointmentBooking({ patientId, onBookingSuccess 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-600" />
+                <Calendar className="w-5 h-5 text-teal-700" />
                 Book an Appointment
               </CardTitle>
               <CardDescription>Essential details only. Takes under a minute.</CardDescription>
@@ -218,51 +246,66 @@ export default function PatientAppointmentBooking({ patientId, onBookingSuccess 
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Patient Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Full Name *</Label>
-              <Input
-                value={bookingData.full_name}
-                onChange={(e) => setBookingData({ ...bookingData, full_name: e.target.value })}
-                placeholder="First and last name"
-                className={errors.full_name ? 'border-red-500' : ''}
-              />
-              {errors.full_name && <p className="text-xs text-red-500">{errors.full_name}</p>}
+          {/* Patient Information - Only show for new patient registrations */}
+          {!isPatientBooking && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Full Name *</Label>
+                <Input
+                  value={bookingData.full_name}
+                  onChange={(e) => setBookingData({ ...bookingData, full_name: e.target.value })}
+                  placeholder="First and last name"
+                  className={errors.full_name ? 'border-red-500' : ''}
+                />
+                {errors.full_name && <p className="text-xs text-red-500">{errors.full_name}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>Date of Birth *</Label>
+                <Input
+                  type="date"
+                  value={bookingData.date_of_birth}
+                  onChange={(e) => setBookingData({ ...bookingData, date_of_birth: e.target.value })}
+                  className={errors.date_of_birth ? 'border-red-500' : ''}
+                />
+                {errors.date_of_birth && <p className="text-xs text-red-500">{errors.date_of_birth}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>Phone Number *</Label>
+                <Input
+                  type="tel"
+                  value={bookingData.phone}
+                  onChange={(e) => setBookingData({ ...bookingData, phone: e.target.value })}
+                  placeholder="+234 800 000 0000"
+                  className={errors.phone ? 'border-red-500' : ''}
+                />
+                {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>Email Address *</Label>
+                <Input
+                  type="email"
+                  value={bookingData.email}
+                  onChange={(e) => setBookingData({ ...bookingData, email: e.target.value })}
+                  placeholder="you@example.com"
+                  className={errors.email ? 'border-red-500' : ''}
+                />
+                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Date of Birth *</Label>
-              <Input
-                type="date"
-                value={bookingData.date_of_birth}
-                onChange={(e) => setBookingData({ ...bookingData, date_of_birth: e.target.value })}
-                className={errors.date_of_birth ? 'border-red-500' : ''}
-              />
-              {errors.date_of_birth && <p className="text-xs text-red-500">{errors.date_of_birth}</p>}
+          )}
+
+          {/* Show patient info for logged-in patients */}
+          {isPatientBooking && patientInfo && (
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="w-5 h-5 text-teal-700" />
+                <Label className="text-sm font-semibold text-teal-900">Booking for: {patientInfo.first_name} {patientInfo.last_name}</Label>
+              </div>
+              <div className="text-xs text-teal-800">
+                Patient ID: {patientInfo.universal_patient_id}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Phone Number *</Label>
-              <Input
-                type="tel"
-                value={bookingData.phone}
-                onChange={(e) => setBookingData({ ...bookingData, phone: e.target.value })}
-                placeholder="+234 800 000 0000"
-                className={errors.phone ? 'border-red-500' : ''}
-              />
-              {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>Email Address *</Label>
-              <Input
-                type="email"
-                value={bookingData.email}
-                onChange={(e) => setBookingData({ ...bookingData, email: e.target.value })}
-                placeholder="you@example.com"
-                className={errors.email ? 'border-red-500' : ''}
-              />
-              {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
-            </div>
-          </div>
+          )}
 
           {/* Appointment Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -416,7 +459,7 @@ export default function PatientAppointmentBooking({ patientId, onBookingSuccess 
           </div>
 
           {/* Consent */}
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg p-3">
+          <div className="flex items-start gap-2 bg-teal-50 border border-teal-100 rounded-lg p-3">
             <input
               type="checkbox"
               className="mt-1"

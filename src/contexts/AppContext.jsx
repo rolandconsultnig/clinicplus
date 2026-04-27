@@ -81,6 +81,8 @@ export function AppProvider({ children, user }) {
     // Load patient's active encounter if exists
     if (patient) {
       await loadActiveEncounter(patient.id)
+    } else {
+      setCurrentEncounter(null)
     }
   }
 
@@ -208,7 +210,7 @@ export function AppProvider({ children, user }) {
       }
       
       try {
-        const response = await fetch('/api/prescriptions/create', {
+        const response = await fetch('/api/doctor/prescriptions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -217,22 +219,37 @@ export function AppProvider({ children, user }) {
           body: JSON.stringify({
             patient_id: selectedPatient.id,
             encounter_id: currentEncounter.id,
-            ...prescriptionData
-          })
+            prescriptions: [
+              {
+                medication:
+                  prescriptionData.medication ||
+                  prescriptionData.drug_name ||
+                  prescriptionData.name,
+                dosage: prescriptionData.dosage,
+                frequency: prescriptionData.frequency,
+                quantity: prescriptionData.quantity,
+                duration: prescriptionData.duration ?? prescriptionData.days_supply,
+                refills: prescriptionData.refills ?? 0,
+                instructions: prescriptionData.instructions || prescriptionData.sig,
+                route: prescriptionData.route || 'oral',
+              },
+            ],
+          }),
         })
         
         if (response.ok) {
           const data = await response.json()
+          const prescription = data.prescriptions?.[0] ?? data.prescription
           broadcastEvent({
             type: 'PRESCRIPTION_CREATED',
-            payload: { prescription: data.prescription }
+            payload: { prescription }
           })
           addNotification({
             type: 'success',
             message: 'Prescription created successfully',
             module: 'prescriptions'
           })
-          return data.prescription
+          return prescription
         }
       } catch (error) {
         console.error('Error creating prescription:', error)
@@ -257,7 +274,10 @@ export function AppProvider({ children, user }) {
       }
       
       try {
-        const response = await fetch('/api/lab-orders/create', {
+        const tests = Array.isArray(labOrderData.tests)
+          ? labOrderData.tests
+          : [labOrderData.test_name || labOrderData.name || labOrderData.test].filter(Boolean)
+        const response = await fetch('/api/doctor/lab-orders', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -266,8 +286,9 @@ export function AppProvider({ children, user }) {
           body: JSON.stringify({
             patient_id: selectedPatient.id,
             encounter_id: currentEncounter.id,
-            ...labOrderData
-          })
+            tests,
+            clinical_notes: labOrderData.clinical_notes || labOrderData.notes || '',
+          }),
         })
         
         if (response.ok) {

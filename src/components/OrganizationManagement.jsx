@@ -6,6 +6,8 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Building2, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { COUNTRIES, DEFAULT_COUNTRY } from '../utils/countries';
+import { getSubdivisionsForCountry } from '../utils/countrySubdivisions';
 
 const OrganizationManagement = () => {
   const [organizations, setOrganizations] = useState([]);
@@ -72,7 +74,7 @@ const OrganizationManagement = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
               <p className="mt-2 text-gray-600">Loading...</p>
             </div>
           </CardContent>
@@ -230,8 +232,11 @@ const CreateOrganizationForm = ({ onClose, onSuccess }) => {
     city: '',
     state: '',
     zip_code: '',
+    country: DEFAULT_COUNTRY,
     subscription_tier: 'basic'
   });
+
+  const orgStateOptions = getSubdivisionsForCountry(formData.country);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -272,7 +277,7 @@ const CreateOrganizationForm = ({ onClose, onSuccess }) => {
                 required
                 value={formData.organization_type}
                 onChange={(e) => setFormData({...formData, organization_type: e.target.value})}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
                 <option value="clinic">Clinic</option>
                 <option value="hospital">Hospital</option>
@@ -304,7 +309,7 @@ const CreateOrganizationForm = ({ onClose, onSuccess }) => {
                 <select
                   value={formData.subscription_tier}
                   onChange={(e) => setFormData({...formData, subscription_tier: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="basic">Basic</option>
                   <option value="professional">Professional</option>
@@ -321,6 +326,22 @@ const CreateOrganizationForm = ({ onClose, onSuccess }) => {
                 className="mb-2"
                 placeholder="Street Address"
               />
+              <div className="mb-2">
+                <label className="block text-sm font-medium mb-2">Country</label>
+                <select
+                  value={formData.country}
+                  onChange={(e) =>
+                    setFormData({ ...formData, country: e.target.value, state: '' })
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <Input
                   type="text"
@@ -328,17 +349,32 @@ const CreateOrganizationForm = ({ onClose, onSuccess }) => {
                   onChange={(e) => setFormData({...formData, city: e.target.value})}
                   placeholder="City"
                 />
-                <Input
-                  type="text"
-                  value={formData.state}
-                  onChange={(e) => setFormData({...formData, state: e.target.value})}
-                  placeholder="State"
-                />
+                {orgStateOptions.length > 0 ? (
+                  <select
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">State / Province…</option>
+                    {orgStateOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    type="text"
+                    value={formData.state}
+                    onChange={(e) => setFormData({...formData, state: e.target.value})}
+                    placeholder="State / Province"
+                  />
+                )}
                 <Input
                   type="text"
                   value={formData.zip_code}
                   onChange={(e) => setFormData({...formData, zip_code: e.target.value})}
-                  placeholder="ZIP Code"
+                  placeholder="ZIP / Postal"
                 />
               </div>
             </div>

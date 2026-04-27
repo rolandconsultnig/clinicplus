@@ -17,8 +17,11 @@ depends_on = None
 
 
 def upgrade():
-    # Add nin column to patients table
-    op.add_column('patients', sa.Column('nin', sa.String(length=11), nullable=True))
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    cols = {c['name'] for c in insp.get_columns('patients')}
+    if 'nin' not in cols:
+        op.add_column('patients', sa.Column('nin', sa.String(length=11), nullable=True))
 
 
 def downgrade():

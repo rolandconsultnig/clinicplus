@@ -43,7 +43,7 @@ export default function PatientPrescriptionView({ patientId }) {
   const getStatusBadge = (status) => {
     const variants = {
       active: { variant: 'default', className: 'bg-green-100 text-green-800 border-green-200' },
-      filled: { variant: 'secondary', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+      filled: { variant: 'secondary', className: 'bg-teal-100 text-teal-800 border-teal-200' },
       completed: { variant: 'outline', className: 'bg-gray-100 text-gray-800 border-gray-200' },
       cancelled: { variant: 'outline', className: 'bg-red-100 text-red-800 border-red-200' }
     };
@@ -91,7 +91,7 @@ export default function PatientPrescriptionView({ patientId }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Pill className="w-6 h-6 text-blue-600" />
+            <Pill className="w-6 h-6 text-teal-700" />
             My Prescriptions
           </h2>
           <p className="text-gray-600 mt-1">
@@ -114,7 +114,7 @@ export default function PatientPrescriptionView({ patientId }) {
           onClick={() => setFilter('all')}
           className={`px-4 py-2 text-sm font-medium transition-colors ${
             filter === 'all'
-              ? 'text-blue-600 border-b-2 border-blue-600'
+              ? 'text-teal-700 border-b-2 border-teal-600'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -124,7 +124,7 @@ export default function PatientPrescriptionView({ patientId }) {
           onClick={() => setFilter('active')}
           className={`px-4 py-2 text-sm font-medium transition-colors ${
             filter === 'active'
-              ? 'text-blue-600 border-b-2 border-blue-600'
+              ? 'text-teal-700 border-b-2 border-teal-600'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -134,7 +134,7 @@ export default function PatientPrescriptionView({ patientId }) {
           onClick={() => setFilter('completed')}
           className={`px-4 py-2 text-sm font-medium transition-colors ${
             filter === 'completed'
-              ? 'text-blue-600 border-b-2 border-blue-600'
+              ? 'text-teal-700 border-b-2 border-teal-600'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -143,11 +143,11 @@ export default function PatientPrescriptionView({ patientId }) {
       </div>
 
       {/* Info Banner */}
-      <Card className="bg-blue-50 border-blue-200">
+      <Card className="bg-teal-50 border-teal-200">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-blue-900">
+            <Info className="w-5 h-5 text-teal-700 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-teal-900">
               <p className="font-medium mb-1">Prescription Information</p>
               <p>
                 Prescriptions can only be assigned by your healthcare providers. 
@@ -176,13 +176,13 @@ export default function PatientPrescriptionView({ patientId }) {
           {filteredPrescriptions.map((prescription) => (
             <Card
               key={prescription.id}
-              className="enhanced-card hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500"
+              className="enhanced-card hover:shadow-lg transition-all duration-300 border-l-4 border-l-teal-500"
             >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start gap-4 flex-1">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Pill className="w-6 h-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Pill className="w-6 h-6 text-teal-700" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -289,6 +289,10 @@ export default function PatientPrescriptionView({ patientId }) {
     </div>
   );
 }
+
+
+
+
 
 
 

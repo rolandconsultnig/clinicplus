@@ -12,7 +12,7 @@ from src.models.scheduling import Appointment
 from src.models.clinical import ClinicalEncounter, VitalSigns
 from src.models.provider import Provider
 from src.models.billing import Charge, Payment
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time, timedelta
 import uuid
 
 receptionist_bp = Blueprint('receptionist', __name__)
@@ -39,17 +39,28 @@ def get_dashboard_stats():
             OPDQueue.status == 'waiting'
         ).count()
         
-        # Total collections (mock data - integrate with actual payment system)
+        # Total collections from completed payments for today
         total_collections = db.session.query(
-            db.func.sum(OPDVisit.registration_fee_amount)
+            db.func.coalesce(db.func.sum(Payment.payment_amount), 0)
         ).filter(
-            OPDVisit.facility_id == facility_id,
-            db.func.date(OPDVisit.visit_date) == today,
-            OPDVisit.registration_fee_paid == True
+            Payment.facility_id == facility_id,
+            Payment.payment_date == today,
+            Payment.status == 'completed'
         ).scalar() or 0
-        
-        # Average wait time (mock calculation)
-        avg_wait_time = 15  # Calculate based on actual queue data
+
+        # Average wait time from active queue entries
+        waiting_entries = OPDQueue.query.filter(
+            OPDQueue.facility_id == facility_id,
+            OPDQueue.status == 'waiting'
+        ).all()
+        avg_wait_time = 0
+        if waiting_entries:
+            now = datetime.utcnow()
+            wait_values = []
+            for entry in waiting_entries:
+                if entry.created_at:
+                    wait_values.append(max(0, int((now - entry.created_at).total_seconds() / 60)))
+            avg_wait_time = int(sum(wait_values) / len(wait_values)) if wait_values else 0
         
         return jsonify({
             'success': True,
@@ -359,21 +370,54 @@ def generate_bill():
         if not patient_id or amount <= 0:
             return jsonify({'error': 'Invalid patient or amount'}), 400
         
-        # Generate receipt ID
+        patient = Patient.query.get(patient_id)
+        if not patient:
+            return jsonify({'error': 'Patient not found'}), 404
+
         receipt_id = f"RCP-{uuid.uuid4().hex[:8].upper()}"
-        
-        # Here you would create actual payment/charge records
-        # For now, returning success with receipt ID
+        payment = Payment(
+            payment_id=receipt_id,
+            patient_id=patient_id,
+            facility_id=facility_id,
+            payment_date=date.today(),
+            payment_method=payment_method,
+            payment_amount=amount,
+            status='completed',
+            reference_number=data.get('reference_number'),
+            created_by=request.current_user.id
+        )
+        db.session.add(payment)
+        db.session.flush()
+
+        # Optionally allocate against an existing charge
+        charge_id = data.get('charge_id')
+        if charge_id:
+            charge = Charge.query.get(charge_id)
+            if charge and charge.patient_id == patient_id and charge.facility_id == facility_id:
+                charge.status = 'paid'
+
+        # Sync OPD registration fee payment if visit is provided
+        visit_id = data.get('visit_id')
+        if visit_id:
+            visit = OPDVisit.query.get(visit_id)
+            if visit and visit.patient_id == patient_id and visit.facility_id == facility_id:
+                visit.registration_fee_paid = True
+                if not visit.registration_fee_amount:
+                    visit.registration_fee_amount = amount
+
+        db.session.commit()
         
         return jsonify({
             'success': True,
             'receipt_id': receipt_id,
             'amount': amount,
             'payment_method': payment_method,
+            'payment': payment.to_dict(),
             'message': 'Payment processed successfully'
         }), 201
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 # Get Queue
@@ -500,57 +544,136 @@ def generate_report(report_type):
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
         
         report_data = {}
+        date_filter = db.and_(
+            db.func.date(OPDVisit.visit_date) >= start_date,
+            db.func.date(OPDVisit.visit_date) <= end_date
+        )
+        payment_date_filter = db.and_(
+            Payment.payment_date >= start_date,
+            Payment.payment_date <= end_date
+        )
         
         if report_type == 'daily':
-            # Daily summary report
             total_patients = OPDVisit.query.filter(
                 OPDVisit.facility_id == facility_id,
-                db.func.date(OPDVisit.visit_date) >= start_date,
-                db.func.date(OPDVisit.visit_date) <= end_date
+                date_filter
             ).count()
             
             total_collections = db.session.query(
-                db.func.sum(OPDVisit.registration_fee_amount)
+                db.func.coalesce(db.func.sum(Payment.payment_amount), 0)
             ).filter(
-                OPDVisit.facility_id == facility_id,
-                db.func.date(OPDVisit.visit_date) >= start_date,
-                db.func.date(OPDVisit.visit_date) <= end_date,
-                OPDVisit.registration_fee_paid == True
+                Payment.facility_id == facility_id,
+                payment_date_filter,
+                Payment.status == 'completed'
             ).scalar() or 0
+
+            no_shows = Appointment.query.filter(
+                Appointment.facility_id == facility_id,
+                Appointment.appointment_date >= start_date,
+                Appointment.appointment_date <= end_date,
+                Appointment.status == 'no_show'
+            ).count()
+
+            wait_entries = OPDQueue.query.filter(
+                OPDQueue.facility_id == facility_id,
+                OPDQueue.created_at >= datetime.combine(start_date, datetime.min.time()),
+                OPDQueue.created_at <= datetime.combine(end_date, datetime.max.time())
+            ).all()
+            wait_values = []
+            for entry in wait_entries:
+                if entry.created_at:
+                    end_time = entry.consultation_started_at or datetime.utcnow()
+                    wait_values.append(max(0, int((end_time - entry.created_at).total_seconds() / 60)))
+            avg_wait = int(sum(wait_values) / len(wait_values)) if wait_values else 0
             
             report_data = {
                 'total_patients': total_patients,
                 'total_collections': float(total_collections),
-                'avg_wait_time': 15,  # Calculate from actual data
-                'no_shows': 0  # Calculate from appointments
+                'avg_wait_time': avg_wait,
+                'no_shows': no_shows
             }
         
         elif report_type == 'shift':
-            # Shift report (similar to daily but for current shift)
+            now = datetime.utcnow()
+            shift_start = datetime.combine(now.date(), datetime.min.time() if now.hour < 12 else time(12, 0))
+            shift_end = now
+            shift_patients = OPDVisit.query.filter(
+                OPDVisit.facility_id == facility_id,
+                OPDVisit.created_at >= shift_start,
+                OPDVisit.created_at <= shift_end
+            ).count()
+            shift_collections = db.session.query(
+                db.func.coalesce(db.func.sum(Payment.payment_amount), 0)
+            ).filter(
+                Payment.facility_id == facility_id,
+                Payment.created_at >= shift_start,
+                Payment.created_at <= shift_end,
+                Payment.status == 'completed'
+            ).scalar() or 0
+            shift_entries = OPDQueue.query.filter(
+                OPDQueue.facility_id == facility_id,
+                OPDQueue.created_at >= shift_start,
+                OPDQueue.created_at <= shift_end
+            ).all()
+            shift_waits = []
+            for entry in shift_entries:
+                if entry.created_at:
+                    end_time = entry.consultation_started_at or datetime.utcnow()
+                    shift_waits.append(max(0, int((end_time - entry.created_at).total_seconds() / 60)))
             report_data = {
-                'total_patients': 0,
-                'total_collections': 0,
-                'avg_wait_time': 0,
-                'no_shows': 0
+                'total_patients': shift_patients,
+                'total_collections': float(shift_collections),
+                'avg_wait_time': int(sum(shift_waits) / len(shift_waits)) if shift_waits else 0,
+                'no_shows': Appointment.query.filter(
+                    Appointment.facility_id == facility_id,
+                    Appointment.appointment_date == now.date(),
+                    Appointment.status == 'no_show'
+                ).count()
             }
         
         elif report_type == 'collections':
-            # Collections report
+            total_collections = db.session.query(
+                db.func.coalesce(db.func.sum(Payment.payment_amount), 0)
+            ).filter(
+                Payment.facility_id == facility_id,
+                payment_date_filter,
+                Payment.status == 'completed'
+            ).scalar() or 0
+
+            def _sum_method(method_name):
+                return db.session.query(
+                    db.func.coalesce(db.func.sum(Payment.payment_amount), 0)
+                ).filter(
+                    Payment.facility_id == facility_id,
+                    payment_date_filter,
+                    Payment.status == 'completed',
+                    Payment.payment_method == method_name
+                ).scalar() or 0
+
             report_data = {
-                'total_patients': 0,
-                'total_collections': 0,
-                'cash_payments': 0,
-                'card_payments': 0,
-                'insurance_payments': 0
+                'total_patients': OPDVisit.query.filter(OPDVisit.facility_id == facility_id, date_filter).count(),
+                'total_collections': float(total_collections),
+                'cash_payments': float(_sum_method('cash')),
+                'card_payments': float(_sum_method('card')),
+                'insurance_payments': float(_sum_method('insurance'))
             }
         
         elif report_type == 'wait_times':
-            # Wait times analysis
+            queue_entries = OPDQueue.query.filter(
+                OPDQueue.facility_id == facility_id,
+                OPDQueue.created_at >= datetime.combine(start_date, datetime.min.time()),
+                OPDQueue.created_at <= datetime.combine(end_date, datetime.max.time())
+            ).all()
+            waits = []
+            for entry in queue_entries:
+                if entry.created_at:
+                    end_time = entry.consultation_started_at or datetime.utcnow()
+                    waits.append(max(0, int((end_time - entry.created_at).total_seconds() / 60)))
             report_data = {
-                'avg_wait_time': 15,
-                'min_wait_time': 5,
-                'max_wait_time': 45,
-                'total_patients': 0
+                'avg_wait_time': int(sum(waits) / len(waits)) if waits else 0,
+                'min_wait_time': min(waits) if waits else 0,
+                'max_wait_time': max(waits) if waits else 0,
+                'total_patients': len(waits)
             }
         
         return jsonify({

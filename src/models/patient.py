@@ -4,6 +4,8 @@ Patient and Medical Data Models - Enhanced with OpenEMR fields
 from datetime import datetime
 from src.models.user import db
 import uuid
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import func
 
 class Patient(db.Model):
     __tablename__ = 'patients'
@@ -215,6 +217,31 @@ class Patient(db.Model):
     
     def __repr__(self):
         return f'<Patient {self.first_name} {self.last_name}>'
+
+    # Backward-compatible aliases used across routes/components.
+    @hybrid_property
+    def phone_primary(self):
+        return self.phone_cell or self.phone_home
+
+    @phone_primary.setter
+    def phone_primary(self, value):
+        self.phone_cell = value
+
+    @phone_primary.expression
+    def phone_primary(cls):
+        return func.coalesce(cls.phone_cell, cls.phone_home)
+
+    @hybrid_property
+    def phone_secondary(self):
+        return self.phone_home
+
+    @phone_secondary.setter
+    def phone_secondary(self, value):
+        self.phone_home = value
+
+    @phone_secondary.expression
+    def phone_secondary(cls):
+        return cls.phone_home
     
     def to_dict(self):
         return {
@@ -348,6 +375,68 @@ class Medication(db.Model):
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class MedicationAdministration(db.Model):
+    __tablename__ = 'medication_administrations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    administration_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)
+    medication_id = db.Column(db.Integer, db.ForeignKey('medications.id'), nullable=False, index=True)
+    encounter_id = db.Column(db.Integer, db.ForeignKey('clinical_encounters.id'), nullable=True)
+    facility_id = db.Column(db.Integer, db.ForeignKey('facilities.id'), nullable=True, index=True)
+
+    scheduled_time = db.Column(db.DateTime, nullable=True)
+    administered_at = db.Column(db.DateTime, nullable=True)
+    administered_by = db.Column(db.Integer, db.ForeignKey('user_accounts.id'), nullable=False)
+
+    status = db.Column(db.String(30), nullable=False, default='pending')  # pending, pending_cosign, administered, refused, held, missed, escalated
+    dose_given = db.Column(db.String(100), nullable=True)
+    route = db.Column(db.String(50), nullable=True)
+    reason = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    is_high_risk = db.Column(db.Boolean, default=False)
+    requires_cosign = db.Column(db.Boolean, default=False)
+    cosigned_by = db.Column(db.Integer, db.ForeignKey('user_accounts.id'), nullable=True)
+    cosigned_at = db.Column(db.DateTime, nullable=True)
+    escalation_status = db.Column(db.String(30), default='none')  # none, escalated, acknowledged
+    escalated_at = db.Column(db.DateTime, nullable=True)
+    escalated_to = db.Column(db.String(120), nullable=True)
+    escalation_reason = db.Column(db.String(255), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    medication = db.relationship('Medication', backref='administration_records')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'administration_id': self.administration_id,
+            'patient_id': self.patient_id,
+            'medication_id': self.medication_id,
+            'encounter_id': self.encounter_id,
+            'facility_id': self.facility_id,
+            'scheduled_time': self.scheduled_time.isoformat() if self.scheduled_time else None,
+            'administered_at': self.administered_at.isoformat() if self.administered_at else None,
+            'administered_by': self.administered_by,
+            'status': self.status,
+            'dose_given': self.dose_given,
+            'route': self.route,
+            'reason': self.reason,
+            'notes': self.notes,
+            'is_high_risk': self.is_high_risk,
+            'requires_cosign': self.requires_cosign,
+            'cosigned_by': self.cosigned_by,
+            'cosigned_at': self.cosigned_at.isoformat() if self.cosigned_at else None,
+            'escalation_status': self.escalation_status,
+            'escalated_at': self.escalated_at.isoformat() if self.escalated_at else None,
+            'escalated_to': self.escalated_to,
+            'escalation_reason': self.escalation_reason,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
 class PatientHistory(db.Model):

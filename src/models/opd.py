@@ -20,16 +20,27 @@ class OPDVisit(db.Model):
     visit_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     visit_type = db.Column(db.String(50), default='walk_in')  # walk_in, scheduled, emergency
     chief_complaint = db.Column(db.Text)
+    appointment_date = db.Column(db.DateTime)
+    booking_source = db.Column(db.String(30), default='walk_in')  # online, phone, walk_in, referral
+    department = db.Column(db.String(100))
+    insurance_plan = db.Column(db.String(120))
     
     # Workflow Status
     workflow_status = db.Column(db.String(50), default='arrived')  
-    # arrived, registered, triaged, vitals_taken, in_queue, in_consultation, 
-    # investigation_ordered, investigation_completed, treatment_planned, discharged
+    # booked, arrived, registered, waiting_triage, triaged, in_queue,
+    # in_consultation, investigations_ordered, investigations_completed,
+    # review_completed, pharmacy_completed, billing_completed, discharged
     
     # Registration Details
     registration_token = db.Column(db.String(20))  # Token number for queue
+    registration_qr = db.Column(db.String(120))
     registration_fee_paid = db.Column(db.Boolean, default=False)
     registration_fee_amount = db.Column(db.Float, default=0.0)
+    registration_verified = db.Column(db.Boolean, default=False)
+    verification_notes = db.Column(db.Text)
+    verified_by = db.Column(db.Integer, db.ForeignKey('user_accounts.id'))
+    verified_at = db.Column(db.DateTime)
+    arrived_at = db.Column(db.DateTime)
     
     # Triage Information
     triage_priority = db.Column(db.String(20))  # urgent, high, medium, low
@@ -55,12 +66,19 @@ class OPDVisit(db.Model):
     investigations_ordered = db.Column(db.Boolean, default=False)
     investigations_completed = db.Column(db.Boolean, default=False)
     investigation_payment_pending = db.Column(db.Boolean, default=False)
+    review_completed = db.Column(db.Boolean, default=False)
     
     # Discharge Information
     discharged_at = db.Column(db.DateTime)
     discharge_notes = db.Column(db.Text)
     follow_up_required = db.Column(db.Boolean, default=False)
     follow_up_date = db.Column(db.Date)
+    pharmacy_completed = db.Column(db.Boolean, default=False)
+    pharmacy_completed_at = db.Column(db.DateTime)
+    billing_completed = db.Column(db.Boolean, default=False)
+    billing_completed_at = db.Column(db.DateTime)
+    total_billing_amount = db.Column(db.Float, default=0.0)
+    visit_summary = db.Column(db.Text)
     
     # System Fields
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -82,11 +100,19 @@ class OPDVisit(db.Model):
             'facility_id': self.facility_id,
             'visit_date': self.visit_date.isoformat() if self.visit_date else None,
             'visit_type': self.visit_type,
+            'appointment_date': self.appointment_date.isoformat() if self.appointment_date else None,
+            'booking_source': self.booking_source,
+            'department': self.department,
+            'insurance_plan': self.insurance_plan,
             'chief_complaint': self.chief_complaint,
             'workflow_status': self.workflow_status,
             'registration_token': self.registration_token,
+            'registration_qr': self.registration_qr,
             'registration_fee_paid': self.registration_fee_paid,
             'registration_fee_amount': self.registration_fee_amount,
+            'registration_verified': self.registration_verified,
+            'verification_notes': self.verification_notes,
+            'arrived_at': self.arrived_at.isoformat() if self.arrived_at else None,
             'triage_priority': self.triage_priority,
             'triage_notes': self.triage_notes,
             'assigned_provider_id': self.assigned_provider_id,
@@ -95,6 +121,13 @@ class OPDVisit(db.Model):
             'queue_number': self.queue_number,
             'investigations_ordered': self.investigations_ordered,
             'investigations_completed': self.investigations_completed,
+            'review_completed': self.review_completed,
+            'pharmacy_completed': self.pharmacy_completed,
+            'pharmacy_completed_at': self.pharmacy_completed_at.isoformat() if self.pharmacy_completed_at else None,
+            'billing_completed': self.billing_completed,
+            'billing_completed_at': self.billing_completed_at.isoformat() if self.billing_completed_at else None,
+            'total_billing_amount': self.total_billing_amount,
+            'visit_summary': self.visit_summary,
             'discharged_at': self.discharged_at.isoformat() if self.discharged_at else None,
             'discharge_notes': self.discharge_notes,
             'follow_up_required': self.follow_up_required,
@@ -146,6 +179,10 @@ class OPDQueue(db.Model):
             'consultation_started_at': self.consultation_started_at.isoformat() if self.consultation_started_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+
+
+
 
 
 

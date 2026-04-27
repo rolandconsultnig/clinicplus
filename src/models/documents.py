@@ -5,6 +5,7 @@ Comprehensive document system with versioning, sharing, and workflow
 
 from datetime import datetime, date
 from src.models.user import db
+from sqlalchemy.orm import synonym
 
 class Document(db.Model):
     __tablename__ = 'documents'
@@ -66,6 +67,10 @@ class Document(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('user_accounts.id'))
     is_active = db.Column(db.Boolean, default=True)
+    # Compatibility aliases still used by older routes.
+    document_name = synonym('file_name')
+    uploaded_by = synonym('created_by')
+    uploaded_at = synonym('created_at')
     
     # Relationships
     patient = db.relationship('Patient', backref='documents')

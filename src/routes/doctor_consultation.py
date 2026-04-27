@@ -7,13 +7,48 @@ from flask import Blueprint, request, jsonify
 from src.auth.jwt_manager import token_required, role_required, otp_verification_required
 from src.models.user import db
 from src.models.patient import Patient, MedicalHistory, Allergy, Medication
-from src.models.clinical import ClinicalEncounter, VitalSigns, ClinicalNote, LabOrder, LabResult
+from src.models.clinical import ClinicalEncounter, VitalSigns, ClinicalNote, LabOrder, LabResult, SOAPTemplate
 from src.models.provider import Provider
-from src.models.prescribing import Prescription, DrugInteraction
+from src.models.prescribing import Prescription, DrugInteraction, Drug
 from datetime import datetime, date, timedelta
 import uuid
+import json
 
 doctor_bp = Blueprint('doctor', __name__)
+_tables_ready = False
+
+
+def _ensure_doctor_tables():
+    global _tables_ready
+    if _tables_ready:
+        return
+    SOAPTemplate.__table__.create(bind=db.engine, checkfirst=True)
+    if SOAPTemplate.query.count() == 0:
+        db.session.add_all([
+            SOAPTemplate(
+                name='Annual Physical Exam',
+                specialty='General Practice',
+                subjective='Patient presents for annual physical examination. No acute complaints.',
+                objective='Vital signs stable. General appearance normal.',
+                assessment='Routine health maintenance visit.',
+                plan='Continue current medications; routine labs ordered; return in 1 year.'
+            ),
+            SOAPTemplate(
+                name='Hypertension Follow-up',
+                specialty='Cardiology',
+                subjective='Patient returns for hypertension follow-up.',
+                objective='Blood pressure reviewed.',
+                assessment='Hypertension follow-up.',
+                plan='Continue or adjust antihypertensives and reinforce lifestyle changes.'
+            ),
+        ])
+        db.session.commit()
+    _tables_ready = True
+
+
+@doctor_bp.before_request
+def initialize_doctor_module():
+    _ensure_doctor_tables()
 
 # Get Patient Data
 @doctor_bp.route('/patient/<int:patient_id>', methods=['GET'])
@@ -167,28 +202,35 @@ def search_icd10():
     """Search ICD-10 diagnosis codes"""
     try:
         query = request.args.get('q', '')
-        
-        # Mock ICD-10 codes - In production, query from ICD-10 database
-        mock_codes = [
-            {'code': 'J00', 'description': 'Acute nasopharyngitis [common cold]'},
-            {'code': 'E11.9', 'description': 'Type 2 diabetes mellitus without complications'},
-            {'code': 'I10', 'description': 'Essential (primary) hypertension'},
-            {'code': 'J44.0', 'description': 'Chronic obstructive pulmonary disease with acute lower respiratory infection'},
-            {'code': 'M79.3', 'description': 'Panniculitis, unspecified'},
-        ]
-        
-        # Filter based on query
+
+        # Build dynamic ICD-like suggestions from recorded diagnosis fields
+        codes = {}
+        encounters = ClinicalEncounter.query.order_by(ClinicalEncounter.updated_at.desc()).limit(500).all()
+        for enc in encounters:
+            if enc.diagnosis_codes:
+                try:
+                    parsed = json.loads(enc.diagnosis_codes)
+                    if isinstance(parsed, list):
+                        for item in parsed:
+                            code = (item.get('code') if isinstance(item, dict) else None) or ''
+                            description = (item.get('description') if isinstance(item, dict) else None) or ''
+                            if code:
+                                codes[code] = description or code
+                except Exception:
+                    pass
+        # Also include simple diagnosis text from medical history as fallback
+        for mh in MedicalHistory.query.order_by(MedicalHistory.created_at.desc()).limit(300).all():
+            if mh.diagnosis and mh.diagnosis not in codes:
+                codes[mh.diagnosis] = mh.diagnosis
+
+        code_list = [{'code': code, 'description': desc} for code, desc in codes.items()]
         if query:
-            filtered_codes = [
-                code for code in mock_codes 
-                if query.lower() in code['code'].lower() or query.lower() in code['description'].lower()
-            ]
-        else:
-            filtered_codes = mock_codes
+            q = query.lower()
+            code_list = [c for c in code_list if q in c['code'].lower() or q in (c['description'] or '').lower()]
         
         return jsonify({
             'success': True,
-            'codes': filtered_codes[:10]
+            'codes': code_list[:20]
         }), 200
         
     except Exception as e:
@@ -202,27 +244,25 @@ def search_drugs():
     """Search drug formulary"""
     try:
         query = request.args.get('q', '')
-        
-        # Mock drug database - In production, query from drug formulary
-        mock_drugs = [
-            {'name': 'Amoxicillin', 'generic_name': 'Amoxicillin', 'strength': '500mg'},
-            {'name': 'Metformin', 'generic_name': 'Metformin HCl', 'strength': '500mg'},
-            {'name': 'Lisinopril', 'generic_name': 'Lisinopril', 'strength': '10mg'},
-            {'name': 'Atorvastatin', 'generic_name': 'Atorvastatin Calcium', 'strength': '20mg'},
-            {'name': 'Omeprazole', 'generic_name': 'Omeprazole', 'strength': '20mg'},
-        ]
-        
+        q = Drug.query.filter(Drug.is_active == True)
         if query:
-            filtered_drugs = [
-                drug for drug in mock_drugs 
-                if query.lower() in drug['name'].lower() or query.lower() in drug['generic_name'].lower()
-            ]
-        else:
-            filtered_drugs = mock_drugs
+            search_term = f"%{query}%"
+            q = q.filter(
+                db.or_(
+                    Drug.drug_name.ilike(search_term),
+                    Drug.generic_name.ilike(search_term)
+                )
+            )
+        filtered_drugs = [{
+            'id': d.id,
+            'name': d.drug_name,
+            'generic_name': d.generic_name,
+            'strength': d.strength
+        } for d in q.order_by(Drug.drug_name.asc()).limit(20).all()]
         
         return jsonify({
             'success': True,
-            'drugs': filtered_drugs[:10]
+            'drugs': filtered_drugs
         }), 200
         
     except Exception as e:
@@ -239,22 +279,59 @@ def create_prescriptions():
         patient_id = data.get('patient_id')
         encounter_id = data.get('encounter_id')
         prescriptions_data = data.get('prescriptions', [])
+        encounter = ClinicalEncounter.query.get_or_404(encounter_id)
+        provider = Provider.query.filter_by(user_account_id=request.current_user.id).first()
+        provider_id = provider.id if provider else None
         
         created_prescriptions = []
         
+        from src.services.prescribing_safety import (
+            collect_prescription_warnings,
+            blocking_warnings,
+            warnings_json,
+        )
+
         for rx_data in prescriptions_data:
+            drug_name = (rx_data.get('medication') or '').strip()
+            drug = Drug.query.filter(
+                db.or_(Drug.drug_name.ilike(drug_name), Drug.generic_name.ilike(drug_name))
+            ).first()
+            if not drug:
+                continue
+            rx_warnings = collect_prescription_warnings(patient_id, drug.id)
+            rx_blockers = blocking_warnings(rx_warnings)
+            if rx_blockers:
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'error': 'Prescription blocked due to drug interaction or allergy',
+                    'drug': drug.drug_name,
+                    'warnings': rx_warnings,
+                    'blocking': rx_blockers,
+                }), 400
             prescription = Prescription(
-                prescription_id=f"RX-{uuid.uuid4().hex[:8].upper()}",
+                prescription_id=f"RX-{uuid.uuid4().hex[:12].upper()}",
                 patient_id=patient_id,
                 encounter_id=encounter_id,
-                provider_id=request.current_user.id,
-                medication_name=rx_data.get('medication'),
+                provider_id=provider_id or encounter.provider_id,
+                facility_id=encounter.facility_id,
+                drug_id=drug.id,
+                drug_name=drug.drug_name,
+                rxnorm_code=drug.rxnorm_code,
                 dosage=rx_data.get('dosage'),
                 frequency=rx_data.get('frequency'),
-                duration=rx_data.get('duration'),
-                instructions=rx_data.get('instructions'),
+                route=rx_data.get('route', 'oral'),
+                quantity=int(rx_data.get('quantity') or 0),
+                days_supply=int(rx_data.get('duration') or 0) if str(rx_data.get('duration', '')).isdigit() else None,
+                refills=int(rx_data.get('refills') or 0),
+                refills_remaining=int(rx_data.get('refills') or 0),
+                sig=rx_data.get('instructions'),
                 status='active',
-                prescribed_date=date.today()
+                prescribed_date=date.today(),
+                drug_interaction_checked=True,
+                allergy_checked=True,
+                interaction_warnings=warnings_json(rx_warnings),
+                created_by=request.current_user.id
             )
             
             db.session.add(prescription)
@@ -284,6 +361,7 @@ def create_lab_orders():
         encounter_id = data.get('encounter_id')
         tests = data.get('tests', [])
         clinical_notes = data.get('clinical_notes', '')
+        encounter = ClinicalEncounter.query.get_or_404(encounter_id)
         
         created_orders = []
         
@@ -292,12 +370,13 @@ def create_lab_orders():
                 order_id=f"LAB-{uuid.uuid4().hex[:8].upper()}",
                 patient_id=patient_id,
                 encounter_id=encounter_id,
-                provider_id=request.current_user.id,
+                ordering_provider_id=encounter.provider_id,
+                facility_id=encounter.facility_id,
                 test_name=test,
-                test_type='laboratory',
+                test_category='laboratory',
                 status='pending',
                 order_date=datetime.utcnow(),
-                clinical_notes=clinical_notes
+                clinical_indication=clinical_notes
             )
             
             db.session.add(lab_order)
@@ -368,7 +447,7 @@ def finalize_encounter(encounter_id):
                 patient_id=encounter.patient_id,
                 encounter_id=encounter.id,
                 note_type='patient_instructions',
-                note_text=data.get('patient_instructions'),
+                note_content=data.get('patient_instructions'),
                 created_by=request.current_user.id,
                 created_at=datetime.utcnow()
             )
@@ -661,59 +740,11 @@ def autosave_soap_note(encounter_id):
 def get_soap_templates():
     """Get SOAP note templates"""
     try:
-        # Mock templates - In production, store in database
-        templates = [
-            {
-                'id': 1,
-                'name': 'Annual Physical Exam',
-                'specialty': 'General Practice',
-                'subjective': 'Patient presents for annual physical examination. No acute complaints.',
-                'objective': 'Vital signs stable. General appearance: well-developed, well-nourished. HEENT: normal. Cardiovascular: regular rate and rhythm. Respiratory: clear to auscultation bilaterally. Abdomen: soft, non-tender.',
-                'assessment': 'Routine health maintenance visit.',
-                'plan': '1. Continue current medications\n2. Routine labs ordered\n3. Age-appropriate screenings discussed\n4. Return in 1 year or PRN'
-            },
-            {
-                'id': 2,
-                'name': 'Upper Respiratory Infection',
-                'specialty': 'General Practice',
-                'subjective': 'Patient presents with cough, congestion, and sore throat for [X] days. Reports [fever/no fever].',
-                'objective': 'Temp: [X]°F. Throat: erythematous. Lungs: clear bilaterally. No respiratory distress.',
-                'assessment': 'Acute upper respiratory infection, likely viral.',
-                'plan': '1. Supportive care: rest, fluids, OTC medications\n2. Return if symptoms worsen or persist >7 days\n3. Discussed red flag symptoms'
-            },
-            {
-                'id': 3,
-                'name': 'Hypertension Follow-up',
-                'specialty': 'Cardiology',
-                'subjective': 'Patient returns for hypertension follow-up. Compliance with medications: [good/fair/poor]. No chest pain, shortness of breath, or edema.',
-                'objective': 'BP: [X/X] mmHg. Heart: regular rate and rhythm. Lungs: clear.',
-                'assessment': 'Hypertension, [controlled/uncontrolled].',
-                'plan': '1. [Continue current regimen / Adjust medications]\n2. Home BP monitoring\n3. Lifestyle modifications reinforced\n4. Follow-up in [X] weeks'
-            },
-            {
-                'id': 4,
-                'name': 'Diabetes Management',
-                'specialty': 'Endocrinology',
-                'subjective': 'Patient with Type 2 DM for follow-up. Blood glucose monitoring: [frequency]. Reports [hypoglycemic episodes/no issues].',
-                'objective': 'A1C: [X]%. Foot exam: no ulcers or neuropathy. BMI: [X].',
-                'assessment': 'Type 2 Diabetes Mellitus, [controlled/uncontrolled].',
-                'plan': '1. [Continue/Adjust] current regimen\n2. Diabetes education reinforced\n3. Referral to ophthalmology for annual exam\n4. Recheck A1C in 3 months'
-            },
-            {
-                'id': 5,
-                'name': 'Acute Pain',
-                'specialty': 'General Practice',
-                'subjective': 'Patient presents with [location] pain, onset [timeframe]. Pain rated [X/10]. Aggravating/alleviating factors: [X].',
-                'objective': 'Examination of affected area: [findings]. ROM: [normal/limited]. No signs of infection.',
-                'assessment': '[Diagnosis].',
-                'plan': '1. Pain management: [medication]\n2. [Rest/Ice/Compression/Elevation]\n3. Follow-up in [X] days if not improved\n4. Imaging if indicated'
-            }
-        ]
-        
-        # Filter by specialty if provided
+        query = SOAPTemplate.query.filter_by(is_active=True)
         specialty = request.args.get('specialty')
         if specialty:
-            templates = [t for t in templates if t['specialty'] == specialty]
+            query = query.filter(SOAPTemplate.specialty.ilike(specialty))
+        templates = [row.to_dict() for row in query.order_by(SOAPTemplate.name.asc()).all()]
         
         return jsonify({
             'success': True,
@@ -761,61 +792,49 @@ def check_drug_interactions():
                         'recommendation': 'DO NOT PRESCRIBE - Choose alternative medication'
                     })
         
-        # Mock drug-drug interactions (In production, use drug interaction database)
-        known_interactions = {
-            ('warfarin', 'aspirin'): {
-                'severity': 'severe',
-                'description': 'Increased risk of bleeding',
-                'recommendation': 'Monitor INR closely, consider alternative'
-            },
-            ('metformin', 'contrast dye'): {
-                'severity': 'moderate',
-                'description': 'Risk of lactic acidosis',
-                'recommendation': 'Hold metformin 48 hours before and after contrast'
-            },
-            ('lisinopril', 'potassium'): {
-                'severity': 'moderate',
-                'description': 'Risk of hyperkalemia',
-                'recommendation': 'Monitor potassium levels'
-            },
-            ('simvastatin', 'clarithromycin'): {
-                'severity': 'severe',
-                'description': 'Increased risk of rhabdomyolysis',
-                'recommendation': 'Avoid combination or reduce statin dose'
-            }
-        }
-        
-        # Check new meds against current meds
-        for current_med in current_meds:
-            for new_med in new_medications:
-                # Normalize names for comparison
-                current_name = current_med.medication_name.lower()
-                new_name = new_med.lower()
-                
-                # Check both directions
-                interaction_key = (current_name, new_name)
-                reverse_key = (new_name, current_name)
-                
-                if interaction_key in known_interactions:
-                    interaction_data = known_interactions[interaction_key]
-                    interactions.append({
-                        'type': 'drug_interaction',
-                        'severity': interaction_data['severity'],
-                        'drug1': current_med.medication_name,
-                        'drug2': new_med,
-                        'description': interaction_data['description'],
-                        'recommendation': interaction_data['recommendation']
-                    })
-                elif reverse_key in known_interactions:
-                    interaction_data = known_interactions[reverse_key]
-                    interactions.append({
-                        'type': 'drug_interaction',
-                        'severity': interaction_data['severity'],
-                        'drug1': new_med,
-                        'drug2': current_med.medication_name,
-                        'description': interaction_data['description'],
-                        'recommendation': interaction_data['recommendation']
-                    })
+        # Resolve current/new meds to formulary IDs and fetch recorded interactions
+        current_drug_ids = set()
+        for med in current_meds:
+            matched = Drug.query.filter(
+                db.or_(Drug.drug_name.ilike(med.medication_name), Drug.generic_name.ilike(med.medication_name))
+            ).first()
+            if matched:
+                current_drug_ids.add(matched.id)
+
+        new_names = []
+        for med in new_medications:
+            if isinstance(med, dict):
+                new_names.append(med.get('name', '').strip())
+            else:
+                new_names.append(str(med).strip())
+        new_names = [m for m in new_names if m]
+        new_drugs = []
+        for med_name in new_names:
+            matched = Drug.query.filter(
+                db.or_(Drug.drug_name.ilike(med_name), Drug.generic_name.ilike(med_name))
+            ).first()
+            if matched:
+                new_drugs.append((med_name, matched))
+
+        if current_drug_ids and new_drugs:
+            new_ids = [drug.id for _, drug in new_drugs]
+            interaction_rows = DrugInteraction.query.filter(
+                db.or_(
+                    db.and_(DrugInteraction.drug1_id.in_(current_drug_ids), DrugInteraction.drug2_id.in_(new_ids)),
+                    db.and_(DrugInteraction.drug2_id.in_(current_drug_ids), DrugInteraction.drug1_id.in_(new_ids))
+                )
+            ).all()
+            for row in interaction_rows:
+                primary = Drug.query.get(row.drug1_id)
+                secondary = Drug.query.get(row.drug2_id)
+                interactions.append({
+                    'type': 'drug_interaction',
+                    'severity': row.severity or 'moderate',
+                    'drug1': primary.drug_name if primary else f'Drug #{row.drug1_id}',
+                    'drug2': secondary.drug_name if secondary else f'Drug #{row.drug2_id}',
+                    'description': row.description or 'Potential interaction detected',
+                    'recommendation': row.clinical_significance or 'Review medication combination'
+                })
         
         return jsonify({
             'success': True,

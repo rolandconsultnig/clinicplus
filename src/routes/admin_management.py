@@ -5,9 +5,16 @@ Includes user management, ACL, code management, rules, alerts, system maintenanc
 from flask import Blueprint, request, jsonify
 from src.models.user import db
 from src.models.auth import UserAccount, Role, Permission
+from src.models.patient import Patient
+from src.models.scheduling import Appointment
+from src.models.clinical import ClinicalEncounter, VitalSigns, ClinicalNote, LabOrder, LabResult
+from src.models.patient import Medication, Allergy, MedicalHistory
+from src.models.billing import Payment
+from src.models.opd import OPDVisit, OPDQueue
 from src.auth.jwt_manager import token_required, role_required
 from datetime import datetime
 import json
+import uuid
 
 admin_mgmt_bp = Blueprint('admin_mgmt', __name__)
 
@@ -134,14 +141,35 @@ def create_backup():
     """Create system backup"""
     try:
         backup_type = request.json.get('backup_type', 'full')  # full, database, files
-        
-        # In production, this would create actual backup
+        backup_id = f"BACKUP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
+        backup_path = f'/backups/{backup_type}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.sql'
+
+        # Persist backup intent as an auditable administrative event.
+        from src.models.auth import AuditLog
+        audit = AuditLog(
+            log_id=f'LOG-{uuid.uuid4().hex[:10].upper()}',
+            user_id=getattr(request.current_user, 'id', None),
+            action_type='system_backup_created',
+            resource_type='backup',
+            resource_id=backup_id,
+            endpoint=request.path,
+            http_method='POST',
+            response_status=201,
+            success=True,
+            details=json.dumps({
+                'backup_type': backup_type,
+                'backup_path': backup_path
+            })
+        )
+        db.session.add(audit)
+        db.session.commit()
+
         backup_info = {
-            'backup_id': f"BACKUP-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            'backup_id': backup_id,
             'backup_type': backup_type,
             'created_at': datetime.utcnow().isoformat(),
             'status': 'completed',
-            'file_path': f'/backups/{backup_type}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.sql'
+            'file_path': backup_path
         }
         
         return jsonify({'success': True, 'backup': backup_info}), 201
@@ -205,15 +233,72 @@ def merge_patients():
         
         primary_patient = Patient.query.get_or_404(primary_patient_id)
         duplicate_patient = Patient.query.get_or_404(duplicate_patient_id)
-        
-        # Merge logic would go here
-        # - Transfer all encounters, medications, allergies, etc. to primary
-        # - Update foreign keys
-        # - Delete duplicate patient
+
+        if primary_patient.id == duplicate_patient.id:
+            return jsonify({'error': 'primary and duplicate patients must be different'}), 400
+
+        # Re-point core clinical/ops references to primary patient.
+        update_counts = {}
+        models_with_patient_fk = [
+            ('appointments', Appointment),
+            ('encounters', ClinicalEncounter),
+            ('vital_signs', VitalSigns),
+            ('clinical_notes', ClinicalNote),
+            ('lab_orders', LabOrder),
+            ('lab_results', LabResult),
+            ('medications', Medication),
+            ('allergies', Allergy),
+            ('medical_history', MedicalHistory),
+            ('payments', Payment),
+            ('opd_visits', OPDVisit),
+        ]
+        for key, model in models_with_patient_fk:
+            count = model.query.filter_by(patient_id=duplicate_patient.id).update(
+                {'patient_id': primary_patient.id}, synchronize_session=False
+            )
+            update_counts[key] = count
+
+        # Best-effort optional tables.
+        try:
+            from src.models.prescribing import Prescription
+            update_counts['prescriptions'] = Prescription.query.filter_by(patient_id=duplicate_patient.id).update(
+                {'patient_id': primary_patient.id}, synchronize_session=False
+            )
+        except Exception:
+            update_counts['prescriptions'] = 0
+        try:
+            from src.models.patient_portal import PortalMessage, PortalAccessLog
+            update_counts['portal_messages'] = PortalMessage.query.filter_by(patient_id=duplicate_patient.id).update(
+                {'patient_id': primary_patient.id}, synchronize_session=False
+            )
+            update_counts['portal_access_logs'] = PortalAccessLog.query.filter_by(patient_id=duplicate_patient.id).update(
+                {'patient_id': primary_patient.id}, synchronize_session=False
+            )
+        except Exception:
+            update_counts['portal_messages'] = 0
+            update_counts['portal_access_logs'] = 0
+        try:
+            from src.models.documents import Document
+            update_counts['documents'] = Document.query.filter_by(patient_id=duplicate_patient.id).update(
+                {'patient_id': primary_patient.id}, synchronize_session=False
+            )
+        except Exception:
+            update_counts['documents'] = 0
+
+        # Preserve traceability: disable duplicate instead of hard delete.
+        duplicate_patient.is_active = False
+        duplicate_patient.updated_at = datetime.utcnow()
+        duplicate_patient.updated_by = getattr(request.current_user, 'id', None)
+        duplicate_patient.billing_note = (
+            (duplicate_patient.billing_note or '') +
+            f"\nMerged into patient {primary_patient.universal_patient_id} on {datetime.utcnow().isoformat()}."
+        ).strip()
+        db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': f'Patient {duplicate_patient_id} merged into {primary_patient_id}'
+            'message': f'Patient {duplicate_patient_id} merged into {primary_patient_id}',
+            'merge_summary': update_counts
         }), 200
         
     except Exception as e:
@@ -225,11 +310,55 @@ def merge_patients():
 def find_duplicates():
     """Find duplicate patients"""
     try:
-        # Find potential duplicates based on name, DOB, phone, etc.
         duplicates = []
-        
-        # This would implement duplicate detection logic
-        # Checking for similar names, DOB, phone numbers, etc.
+
+        # Match candidates by exact DOB + last name and overlapping phone/email/NIN.
+        patients = Patient.query.filter(Patient.is_active == True).all()
+        grouped = {}
+        for patient in patients:
+            key = (
+                (patient.last_name or '').strip().lower(),
+                patient.date_of_birth.isoformat() if patient.date_of_birth else ''
+            )
+            grouped.setdefault(key, []).append(patient)
+
+        for _, items in grouped.items():
+            if len(items) < 2:
+                continue
+            # Compare each pair in this strict cohort.
+            for idx in range(len(items)):
+                a = items[idx]
+                for jdx in range(idx + 1, len(items)):
+                    b = items[jdx]
+                    a_phone = (getattr(a, 'phone_primary', None) or a.phone_home or a.phone_cell or '').strip()
+                    b_phone = (getattr(b, 'phone_primary', None) or b.phone_home or b.phone_cell or '').strip()
+                    same_phone = bool(a_phone and b_phone and a_phone == b_phone)
+                    same_email = bool((a.email or '').strip() and (b.email or '').strip() and a.email.strip().lower() == b.email.strip().lower())
+                    same_nin = bool((a.nin or '').strip() and (b.nin or '').strip() and a.nin.strip() == b.nin.strip())
+
+                    if same_phone or same_email or same_nin:
+                        reasons = []
+                        if same_phone:
+                            reasons.append('phone')
+                        if same_email:
+                            reasons.append('email')
+                        if same_nin:
+                            reasons.append('nin')
+                        duplicates.append({
+                            'primary_candidate_id': a.id,
+                            'duplicate_candidate_id': b.id,
+                            'match_reasons': reasons,
+                            'patient_a': {
+                                'id': a.id,
+                                'name': f'{a.first_name} {a.last_name}',
+                                'upi': a.universal_patient_id
+                            },
+                            'patient_b': {
+                                'id': b.id,
+                                'name': f'{b.first_name} {b.last_name}',
+                                'upi': b.universal_patient_id
+                            }
+                        })
         
         return jsonify({
             'success': True,

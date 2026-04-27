@@ -8,7 +8,11 @@ from src.models.user import db
 from src.models.prescribing import Drug, DrugInteraction, DrugAllergyInteraction, Prescription, PrescriptionRefill
 from src.models.patient import Patient, Allergy
 from src.models.auth import AuditLog
-from src.services.drug_interaction_service import drug_interaction_service
+from src.services.prescribing_safety import (
+    collect_prescription_warnings,
+    blocking_warnings,
+    warnings_json,
+)
 from datetime import datetime, date
 import uuid
 import json
@@ -143,64 +147,16 @@ def create_prescription():
         patient_id = data['patient_id']
         drug_id = data['drug_id']
         
-        # Get patient's current active prescriptions
-        active_prescriptions = Prescription.query.filter(
-            Prescription.patient_id == patient_id,
-            Prescription.status == 'active'
-        ).all()
-        active_drug_ids = [p.drug_id for p in active_prescriptions]
-        
-        # Check interactions using drug interaction service
-        all_drug_ids = active_drug_ids + [drug_id]
-        interaction_check = drug_interaction_service.check_interactions(all_drug_ids, patient_id)
-        warnings = interaction_check.get('warnings', [])
-        
-        # Check drug-drug interactions with active prescriptions
-        for active_drug_id in active_drug_ids:
-            interaction = DrugInteraction.query.filter(
-                db.or_(
-                    db.and_(DrugInteraction.drug1_id == drug_id, DrugInteraction.drug2_id == active_drug_id),
-                    db.and_(DrugInteraction.drug1_id == active_drug_id, DrugInteraction.drug2_id == drug_id)
-                )
-            ).first()
-            
-            if interaction:
-                warnings.append({
-                    'type': 'drug_interaction',
-                    'severity': interaction.severity,
-                    'drug1_id': drug_id,
-                    'drug2_id': active_drug_id,
-                    'description': interaction.description
-                })
-        
-        # Check drug-allergy interactions
-        patient_allergies = Allergy.query.filter(Allergy.patient_id == patient_id).all()
-        allergen_names = [a.allergen.lower() for a in patient_allergies]
-        
-        drug = Drug.query.get(drug_id)
-        if drug:
-            drug_name_lower = drug.drug_name.lower()
-            generic_name_lower = (drug.generic_name or '').lower()
-            
-            for allergen in allergen_names:
-                if allergen in drug_name_lower or allergen in generic_name_lower:
-                    warnings.append({
-                        'type': 'drug_allergy',
-                        'severity': 'severe',
-                        'drug_id': drug_id,
-                        'allergen': allergen,
-                        'description': f'Patient is allergic to {allergen}'
-                    })
-        
-        # Check if any warnings are severe
-        severe_warnings = [w for w in warnings if w.get('severity') == 'severe']
-        if severe_warnings:
+        warnings = collect_prescription_warnings(patient_id, drug_id)
+        blockers = blocking_warnings(warnings)
+        if blockers:
             return jsonify({
                 'success': False,
-                'error': 'Severe drug interaction or allergy detected',
-                'warnings': warnings
+                'error': 'Drug interaction, contraindication, or allergy blocks this prescription',
+                'warnings': warnings,
+                'blocking': blockers,
             }), 400
-        
+
         drug = Drug.query.get_or_404(drug_id)
         
         prescription = Prescription(
@@ -226,7 +182,7 @@ def create_prescription():
             end_date=date.fromisoformat(data['end_date']) if data.get('end_date') else None,
             drug_interaction_checked=True,
             allergy_checked=True,
-            interaction_warnings=json.dumps(warnings) if warnings else None,
+            interaction_warnings=warnings_json(warnings),
             dea_required=drug.is_controlled,
             created_by=request.current_user.id
         )

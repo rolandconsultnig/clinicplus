@@ -242,7 +242,7 @@ export default function IoTVitalsPanel({ patientId }) {
                       )}
                       {mostRecent.heart_rate && (
                         <VitalCard
-                          icon={<Activity className="w-5 h-5 text-pink-500" />}
+                          icon={<Activity className="w-5 h-5 text-rose-500" />}
                           label="Heart Rate"
                           value={mostRecent.heart_rate}
                           unit="bpm"
@@ -259,7 +259,7 @@ export default function IoTVitalsPanel({ patientId }) {
                     <div className="grid grid-cols-2 gap-3">
                       {mostRecent.oxygen_saturation && (
                         <VitalCard
-                          icon={<Wind className="w-5 h-5 text-blue-500" />}
+                          icon={<Wind className="w-5 h-5 text-teal-600" />}
                           label="SpO2"
                           value={mostRecent.oxygen_saturation}
                           unit="%"
@@ -296,7 +296,7 @@ export default function IoTVitalsPanel({ patientId }) {
                       )}
                       {mostRecent.blood_glucose && (
                         <VitalCard
-                          icon={<Droplet className="w-5 h-5 text-purple-500" />}
+                          icon={<Droplet className="w-5 h-5 text-teal-600" />}
                           label="Glucose"
                           value={mostRecent.blood_glucose}
                           unit="mg/dL"
@@ -370,13 +370,13 @@ export default function IoTVitalsPanel({ patientId }) {
               {mostRecent && (mostRecent.steps || mostRecent.sleep_duration) ? (
                 <>
                   {mostRecent.steps && (
-                    <div className="p-3 bg-blue-50 rounded-lg">
+                    <div className="p-3 bg-teal-50 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <Footprints className="w-5 h-5 text-blue-600" />
+                          <Footprints className="w-5 h-5 text-teal-700" />
                           <span className="font-semibold">Steps</span>
                         </div>
-                        <span className="text-2xl font-bold text-blue-600">
+                        <span className="text-2xl font-bold text-teal-700">
                           {mostRecent.steps.toLocaleString()}
                         </span>
                       </div>
@@ -394,13 +394,13 @@ export default function IoTVitalsPanel({ patientId }) {
                   )}
 
                   {mostRecent.sleep_duration && (
-                    <div className="p-3 bg-purple-50 rounded-lg">
+                    <div className="p-3 bg-teal-50 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <Moon className="w-5 h-5 text-purple-600" />
+                          <Moon className="w-5 h-5 text-teal-700" />
                           <span className="font-semibold">Sleep</span>
                         </div>
-                        <span className="text-2xl font-bold text-purple-600">
+                        <span className="text-2xl font-bold text-teal-700">
                           {Math.floor(mostRecent.sleep_duration / 60)}h {mostRecent.sleep_duration % 60}m
                         </span>
                       </div>
@@ -510,7 +510,7 @@ function DeviceCard({ device, onSync }) {
     <div className="p-3 border rounded-lg hover:bg-gray-50">
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3">
-          <div className="p-2 bg-blue-100 rounded">
+          <div className="p-2 bg-teal-100 rounded">
             {getDeviceIcon(device.device_type)}
           </div>
           <div className="flex-1">

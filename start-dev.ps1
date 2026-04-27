@@ -26,8 +26,8 @@ if (-not (Test-Path "node_modules")) {
 # Start frontend
 Write-Host "Starting Frontend Server..." -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Backend: http://localhost:5000" -ForegroundColor Cyan
-Write-Host "Frontend: http://localhost:5173" -ForegroundColor Cyan
+Write-Host "Backend: http://localhost:4300" -ForegroundColor Cyan
+Write-Host "Frontend: http://localhost:4305" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Press Ctrl+C to stop the frontend server" -ForegroundColor Gray
 Write-Host ""

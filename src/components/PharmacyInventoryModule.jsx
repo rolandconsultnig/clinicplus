@@ -29,11 +29,14 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  Eye
 } from 'lucide-react'
-import apiService from '../services/apiService'
+import { apiService } from '../services/apiService'
+import { formatCurrency, formatCurrencySimple, CURRENCY_SYMBOL } from '../utils/currency.js'
 
 export default function PharmacyInventoryModule() {
+  const DEFAULT_PHARMACY_ID = 1
   const [activeTab, setActiveTab] = useState('pending-prescriptions')
   const [pendingPrescriptions, setPendingPrescriptions] = useState([])
   const [inventory, setInventory] = useState([])
@@ -95,7 +98,8 @@ export default function PharmacyInventoryModule() {
       }
 
       await apiService.request(`/pharmacy/process/${prescriptionId}`, {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify({ pharmacy_id: DEFAULT_PHARMACY_ID })
       })
       
       alert('Prescription processed and added to dispensing queue')
@@ -136,7 +140,7 @@ export default function PharmacyInventoryModule() {
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'verified': return 'bg-blue-100 text-blue-800'
+      case 'verified': return 'bg-teal-100 text-teal-800'
       case 'dispensed': return 'bg-green-100 text-green-800'
       case 'cancelled': return 'bg-red-100 text-red-800'
       case 'low': return 'bg-red-100 text-red-800'
@@ -148,7 +152,7 @@ export default function PharmacyInventoryModule() {
   const getStockLevel = (current, min, max) => {
     if (current <= min) return { level: 'Critical', color: 'text-red-600' }
     if (current <= min * 1.5) return { level: 'Low', color: 'text-yellow-600' }
-    if (current >= max) return { level: 'Overstock', color: 'text-blue-600' }
+    if (current >= max) return { level: 'Overstock', color: 'text-teal-700' }
     return { level: 'Adequate', color: 'text-green-600' }
   }
 
@@ -205,14 +209,14 @@ export default function PharmacyInventoryModule() {
           </Card>
         )}
         
-        <Card className="border-2 border-blue-500 bg-blue-50">
+        <Card className="border-2 border-teal-500 bg-teal-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600">Pending Prescriptions</p>
-                <p className="text-3xl font-bold text-blue-900">{pendingPrescriptions.length}</p>
+                <p className="text-sm text-teal-700">Pending Prescriptions</p>
+                <p className="text-3xl font-bold text-teal-900">{pendingPrescriptions.length}</p>
               </div>
-              <FileText className="w-8 h-8 text-blue-600" />
+              <FileText className="w-8 h-8 text-teal-700" />
             </div>
           </CardContent>
         </Card>
@@ -252,7 +256,7 @@ export default function PharmacyInventoryModule() {
               <div className="space-y-3">
                 {pendingPrescriptions.length > 0 ? (
                   pendingPrescriptions.map((prescription) => (
-                    <Card key={prescription.id} className="border-l-4 border-l-blue-500">
+                    <Card key={prescription.id} className="border-l-4 border-l-teal-500">
                       <CardContent className="pt-6">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -396,7 +400,7 @@ export default function PharmacyInventoryModule() {
                             ))}
                           </div>
 
-                          <div className="p-3 bg-blue-50 rounded-lg text-sm">
+                          <div className="p-3 bg-teal-50 rounded-lg text-sm">
                             <h5 className="font-semibold mb-1">Counseling Points:</h5>
                             <ul className="space-y-1 text-gray-700">
                               <li>• Take with food</li>
@@ -460,7 +464,7 @@ export default function PharmacyInventoryModule() {
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <Package className="w-5 h-5 text-blue-600" />
+                              <Package className="w-5 h-5 text-teal-700" />
                               <div>
                                 <h4 className="font-semibold">{item.drug_name}</h4>
                                 <p className="text-sm text-gray-600">{item.generic_name} - {item.strength}</p>
@@ -491,7 +495,7 @@ export default function PharmacyInventoryModule() {
                               </div>
                               <div>
                                 <span className="text-gray-600">Unit Price:</span>
-                                <p className="font-medium">${item.unit_price}</p>
+                                <p className="font-medium">{formatCurrency(item.unit_price || 0)}</p>
                               </div>
                             </div>
                           </div>
@@ -573,7 +577,7 @@ export default function PharmacyInventoryModule() {
                             <Badge className={getStatusColor(po.status)}>{po.status}</Badge>
                           </div>
                           <p className="text-sm text-gray-600">Vendor: {po.vendor_name}</p>
-                          <p className="text-sm text-gray-600">Items: {po.item_count} | Total: ${po.total_amount}</p>
+                          <p className="text-sm text-gray-600">Items: {po.item_count} | Total: {formatCurrency(po.total_amount || 0)}</p>
                           <p className="text-sm text-gray-600">Date: {new Date(po.date).toLocaleDateString()}</p>
                         </div>
                         <div className="flex gap-2">
@@ -615,15 +619,15 @@ export default function PharmacyInventoryModule() {
                 <div className="space-y-3">
                   <div className="flex justify-between p-3 border rounded">
                     <span>Total Sales</span>
-                    <span className="font-bold text-green-600">$45,230</span>
+                    <span className="font-bold text-green-600">{formatCurrencySimple(45230, 0)}</span>
                   </div>
                   <div className="flex justify-between p-3 border rounded">
                     <span>Cost of Goods Sold</span>
-                    <span className="font-bold text-red-600">$28,150</span>
+                    <span className="font-bold text-red-600">{formatCurrencySimple(28150, 0)}</span>
                   </div>
-                  <div className="flex justify-between p-3 border rounded bg-blue-50">
+                  <div className="flex justify-between p-3 border rounded bg-teal-50">
                     <span className="font-semibold">Gross Profit</span>
-                    <span className="font-bold text-blue-600">$17,080</span>
+                    <span className="font-bold text-teal-700">{formatCurrencySimple(17080, 0)}</span>
                   </div>
                 </div>
               </CardContent>
